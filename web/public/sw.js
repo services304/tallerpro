@@ -1,6 +1,6 @@
 /* TallerPro — service worker: abre la app sin señal (la casa del cliente puede no tener cobertura). */
-const CACHE = 'tallerpro-shell-v1';
-const SHELL = ['/', '/index.html', '/boot.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png'];
+const CACHE = 'tallerpro-shell-v2';
+const SHELL = ['/', '/index.html', '/boot.js', '/manifest.webmanifest', '/favicon.png', '/logo-96.webp', '/logo-384.webp', '/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

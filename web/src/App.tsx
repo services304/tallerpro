@@ -2,11 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { get, onAuthLost, onVersionMismatch, patch } from './api';
 import { IconAgenda, IconClients, IconMore, IconOrders, IconToday } from './components/icons';
-import { ErrorBoundary, Loading, ToastProvider } from './components/ui';
+import { ErrorBoundary, ToastProvider } from './components/ui';
 import { OutboxPrompt } from './components/Outbox';
 import { I18nProvider, LANGS, useI18n, type Lang } from './i18n';
 import { SessionProvider, useSession } from './session';
-import { Forgot, Login, Reset, Setup } from './pages/Auth';
+import { Forgot, Login, Reset, Setup, Waking } from './pages/Auth';
+import { Logo } from './components/Brand';
 import { Today } from './pages/Today';
 import { Agenda } from './pages/Agenda';
 import { Orders } from './pages/Orders';
@@ -81,7 +82,8 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="shop">{shop?.shop_name ?? 'TallerPro'}</span>
+        <Logo size={36} />
+        <span className="shop">{shop?.shop_name ?? 'Mécanicien El Cabo'}</span>
         <LangSwitch />
       </header>
       <nav className="tabbar" aria-label="TallerPro">
@@ -121,7 +123,7 @@ function Private() {
   const s = useSession();
   const nav = useNavigate();
   useEffect(() => onAuthLost(() => s.setAnon()), [s]);
-  if (s.state === 'loading') return <div className="main"><Loading /></div>;
+  if (s.state === 'loading' || s.state === 'offline') return <Waking />;
   if (s.state === 'setup') return <Navigate to="/setup" replace />;
   if (s.state === 'anon') return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   void nav;

@@ -13,7 +13,7 @@
     box.className = 'boot boot-error';
     box.textContent = '';
     var h = document.createElement('p');
-    h.textContent = "TallerPro n'a pas pu démarrer · No se pudo iniciar TallerPro · TallerPro could not start.";
+    h.textContent = "L'application n'a pas pu démarrer · No se pudo iniciar la app · The app could not start.";
     box.appendChild(h);
     var p = document.createElement('p');
     p.textContent = failed.length ? 'Fichier / archivo / file: ' + failed.join(', ') : 'Rechargez la page · Recarga la página · Reload the page.';

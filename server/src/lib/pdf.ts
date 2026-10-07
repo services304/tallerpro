@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 import { one, q } from '../db.js';
 import { notFound } from './errors.js';
@@ -5,6 +8,11 @@ import { docLabels, type Lang } from './i18n.js';
 import { formatMoney } from './money.js';
 import { formatPhone } from './phone.js';
 import { fmtShortDate } from './time.js';
+
+// Logo del taller (server/assets/logo.png), cargado una vez. Funciona desde src/ y desde dist/.
+const LOGO_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'logo.png');
+const LOGO: Buffer | null = existsSync(LOGO_PATH) ? readFileSync(LOGO_PATH) : null;
+const AMBER = '#F5B314';
 
 interface Line {
   kind: string;
@@ -53,10 +61,16 @@ function render(d: DocData, lang: Lang): Promise<Buffer> {
     const right = doc.page.width - 48;
     const width = right - left;
 
-    // Encabezado
-    doc.font('Helvetica-Bold').fontSize(16).text(d.shop.name, left, 48);
+    // Encabezado: logo + nombre del taller; franja ámbar de la marca arriba
+    doc.rect(0, 0, doc.page.width, 6).fill(AMBER).fillColor('#000');
+    let textLeft = left;
+    if (LOGO) {
+      doc.image(LOGO, left, 40, { width: 62, height: 62 });
+      textLeft = left + 74;
+    }
+    doc.font('Helvetica-Bold').fontSize(16).text(d.shop.name, textLeft, 48, { width: width / 2 });
     doc.font('Helvetica').fontSize(9).fillColor('#444');
-    [d.shop.address, [formatPhone(d.shop.phone), d.shop.email].filter(Boolean).join(' · ')].filter(Boolean).forEach((l) => doc.text(l));
+    [d.shop.address, [formatPhone(d.shop.phone), d.shop.email].filter(Boolean).join(' · ')].filter(Boolean).forEach((l) => doc.text(l, textLeft, undefined, { width: width / 2 }));
     if (d.gstNo || d.qstNo) doc.text([d.gstNo && `${L.gstNo} ${d.gstNo}`, d.qstNo && `${L.qstNo} ${d.qstNo}`].filter(Boolean).join(' · '));
     doc.fillColor('#000').font('Helvetica-Bold').fontSize(18).text(d.title, left, 48, { width, align: 'right' });
     doc.font('Helvetica').fontSize(10).text(`${L.number} ${d.number}`, { width, align: 'right' });
@@ -64,7 +78,7 @@ function render(d: DocData, lang: Lang): Promise<Buffer> {
     if (d.validUntil) doc.text(`${L.validUntil} : ${fmtShortDate(d.validUntil, lang)}`, { width, align: 'right' });
 
     // Cliente y vehículo
-    let y = Math.max(doc.y, 130) + 16;
+    let y = Math.max(doc.y, 112) + 16;
     doc.moveTo(left, y).lineTo(right, y).strokeColor('#ccc').stroke();
     y += 10;
     doc.font('Helvetica-Bold').fontSize(9).fillColor('#666').text(L.client.toUpperCase(), left, y);
@@ -81,9 +95,10 @@ function render(d: DocData, lang: Lang): Promise<Buffer> {
       : [{ w: 0.55, t: L.description }, { w: 0.1, t: L.qty, a: 'right' }, { w: 0.17, t: L.unitPrice, a: 'right' }, { w: 0.18, t: L.amount, a: 'right' }];
     const xs: number[] = [];
     cols.reduce((x, c) => (xs.push(x), x + c.w * width), left);
-    doc.rect(left, y, width, 20).fill('#f1f1f1').fillColor('#000');
+    doc.rect(left, y, width, 20).fill('#111214').fillColor('#ffffff');
     doc.font('Helvetica-Bold').fontSize(9);
     cols.forEach((c, i) => doc.text(c.t, xs[i]! + 4, y + 6, { width: c.w * width - 8, align: (c.a as any) ?? 'left' }));
+    doc.fillColor('#000');
     y += 24;
     doc.font('Helvetica').fontSize(9.5);
     for (const l of d.lines) {

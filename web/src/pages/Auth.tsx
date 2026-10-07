@@ -3,9 +3,30 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { post } from '../api';
 import { LangSwitch } from '../App';
 import { Input } from '../components/ui';
+import { Lockup } from '../components/Brand';
 import { useI18n } from '../i18n';
 import { useSession } from '../session';
 import { APP_VERSION } from '../api';
+
+/** Mientras el servidor gratuito se despierta (hasta ~1 minuto) o si no responde. */
+export function Waking() {
+  const { t } = useI18n();
+  const s = useSession();
+  return (
+    <AuthFrame title={s.state === 'offline' ? t('app.offlineTitle') : t('app.waking')}>
+      {s.state === 'offline' ? (
+        <>
+          <p className="error" role="alert">{t('app.offlineHelp')}</p>
+          <button className="btn primary block" onClick={() => void s.refresh()}>
+            {t('app.reload')}
+          </button>
+        </>
+      ) : (
+        <p className="muted" aria-busy="true">{t('app.wakingHelp')}</p>
+      )}
+    </AuthFrame>
+  );
+}
 
 function AuthFrame({ title, children }: { title: string; children: ReactNode }) {
   const { t } = useI18n();
@@ -13,10 +34,10 @@ function AuthFrame({ title, children }: { title: string; children: ReactNode }) 
     <div className="auth">
       <div className="auth-box">
         <div className="auth-brand">
-          <span className="tag big">TallerPro</span>
+          <Lockup size="lg" />
         </div>
-        <div className="row between">
-          <h1>{title}</h1>
+        <div className="row between" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+          <h1 style={{ minWidth: 0 }}>{title}</h1>
           <LangSwitch />
         </div>
         {children}
@@ -39,6 +60,7 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   if (s.state === 'in') return <Navigate to="/" replace />;
   if (s.state === 'setup') return <Navigate to="/setup" replace />;
+  if (s.state === 'loading' || s.state === 'offline') return <Waking />;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -73,11 +95,12 @@ export function Login() {
 export function Setup() {
   const { t, lang } = useI18n();
   const s = useSession();
-  const [form, setForm] = useState({ shopName: '', name: '', email: '', password: '' });
+  const [form, setForm] = useState({ shopName: 'Mécanicien El Cabo', name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   if (s.state === 'in') return <Navigate to="/" replace />;
   if (s.state === 'anon') return <Navigate to="/login" replace />;
+  if (s.state === 'loading' || s.state === 'offline') return <Waking />;
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
   async function submit(e: FormEvent) {

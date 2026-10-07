@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { patch, post } from '../../api';
 import { LangSwitch } from '../../App';
+import { Logo } from '../../components/Brand';
 import { ChannelPicker } from '../../components/forms';
 import { SignaturePad, type SignatureHandle } from '../../components/media';
 import { Check, Input, Loading, OrderStatus, Status, Tag, useAction, useLoad, vehicleName } from '../../components/ui';
@@ -167,6 +168,7 @@ export function Portal() {
   return (
     <div className="shell" style={{ gridTemplateRows: 'auto 1fr' }}>
       <header className="topbar">
+        <Logo size={36} />
         <span className="shop">{d.shop.shop_name}</span>
         <LangSwitch />
       </header>

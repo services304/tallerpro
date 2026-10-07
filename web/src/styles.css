@@ -1,68 +1,71 @@
-/* TallerPro — piso de taller verde grafito, acento amarillo de copia carbón. */
-@import '@fontsource/barlow/400.css';
-@import '@fontsource/barlow/500.css';
-@import '@fontsource/barlow/600.css';
-@import '@fontsource/barlow-condensed/600.css';
-@import '@fontsource/barlow-condensed/700.css';
+/* Mécanicien El Cabo — negro del emblema, ámbar de la gorra, crema del aro. */
+@import '@fontsource/outfit/400.css';
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
 
 :root {
-  --bg: #0f1d1c;
-  --surface: #172b29;
-  --surface-2: #1e3633;
-  --line: #2a4441;
-  --ink: #e6eee8;
-  --muted: #9db2ab;
-  --accent: #f0cf63;
-  --accent-ink: #1b1a0e;
-  --accent-text: #f0cf63;
+  --bg: #0f1113;
+  --surface: #171a1d;
+  --surface-2: #212529;
+  --line: #2d3237;
+  --ink: #e7e5e0;
+  --muted: #9b9c98;
+  --accent: #f5b314;
+  --accent-ink: #111214;
+  --accent-text: #f5b314;
   --danger: #f08a7e;
   --danger-bg: #3a2220;
   --ok: #8fd3a8;
-  --ok-bg: #1d3a2b;
+  --ok-bg: #1b3326;
   --info: #8ec5e8;
-  --info-bg: #1c3140;
-  --focus: #f0cf63;
+  --info-bg: #1b2c39;
+  --focus: #f5b314;
+  /* Aro claro del emblema sobre fondo oscuro (guía de marca); sin aro en fondo claro. */
+  --ring: #e7e5e0;
   --radius: 10px;
   --tap: 48px;
-  --font: 'Barlow', system-ui, sans-serif;
-  --font-cond: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --font: 'Outfit', system-ui, sans-serif;
+  --font-cond: 'Outfit', system-ui, sans-serif;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --bg: #eef2ef;
-    --surface: #ffffff;
-    --surface-2: #e3eae6;
-    --line: #c9d5d0;
-    --ink: #10201e;
-    --muted: #4e6460;
-    --accent-text: #7a5d00;
+    --bg: #e7e6e1;
+    --surface: #f3f2ee;
+    --surface-2: #dad8d1;
+    --line: #c6c3ba;
+    --ink: #111214;
+    --muted: #5f605c;
+    --accent-text: #7a5200;
     --danger: #a3271a;
-    --danger-bg: #fbe4e1;
+    --danger-bg: #f6dcd8;
     --ok: #1d6a3f;
-    --ok-bg: #dcf1e3;
+    --ok-bg: #d6ebdc;
     --info: #1d5b85;
-    --info-bg: #dcebf6;
-    --focus: #10201e;
+    --info-bg: #d7e5ef;
+    --focus: #111214;
+    --ring: transparent;
     color-scheme: light;
   }
 }
 :root[data-theme='light'] {
-  --bg: #eef2ef;
-  --surface: #ffffff;
-  --surface-2: #e3eae6;
-  --line: #c9d5d0;
-  --ink: #10201e;
-  --muted: #4e6460;
-  --accent-text: #7a5d00;
+  --bg: #e7e6e1;
+  --surface: #f3f2ee;
+  --surface-2: #dad8d1;
+  --line: #c6c3ba;
+  --ink: #111214;
+  --muted: #5f605c;
+  --accent-text: #7a5200;
   --danger: #a3271a;
-  --danger-bg: #fbe4e1;
+  --danger-bg: #f6dcd8;
   --ok: #1d6a3f;
-  --ok-bg: #dcf1e3;
+  --ok-bg: #d6ebdc;
   --info: #1d5b85;
-  --info-bg: #dcebf6;
-  --focus: #10201e;
+  --info-bg: #d7e5ef;
+  --focus: #111214;
+  --ring: transparent;
   color-scheme: light;
 }
 
@@ -82,10 +85,10 @@ img { max-width: 100%; display: block; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
-h1, h2, h3 { font-family: var(--font-cond); font-weight: 700; line-height: 1.1; margin: 0; letter-spacing: 0.01em; }
-h1 { font-size: 30px; }
-h2 { font-size: 22px; }
-h3 { font-size: 18px; font-weight: 600; }
+h1, h2, h3 { font-family: var(--font-cond); font-weight: 700; line-height: 1.15; margin: 0; letter-spacing: 0; }
+h1 { font-size: 28px; }
+h2 { font-size: 20px; }
+h3 { font-size: 17px; font-weight: 600; }
 p { margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
@@ -94,7 +97,7 @@ p { margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* Arranque */
-.boot { padding: 40px 20px; font-family: system-ui, sans-serif; color: #9db2ab; }
+.boot { padding: 40px 20px; font-family: system-ui, sans-serif; color: #9b9c98; background: #0f1113; min-height: 100dvh; }
 .boot-error { color: #f08a7e; display: grid; gap: 8px; }
 
 /* Estructura */
@@ -105,7 +108,7 @@ p { margin: 0; }
   padding: calc(env(safe-area-inset-top) + 8px) 16px 8px;
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
-.topbar .shop { font-family: var(--font-cond); font-weight: 700; font-size: 20px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar .shop { font-family: var(--font-cond); font-weight: 600; font-size: 18px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .main { width: 100%; max-width: 920px; margin: 0 auto; padding: 16px 16px 112px; display: grid; gap: 20px; align-content: start; }
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
@@ -300,7 +303,7 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 
 .auth { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
 .auth-box { width: 100%; max-width: 400px; display: grid; gap: 16px; }
-.auth-brand { display: flex; align-items: center; gap: 12px; }
+.auth-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; }
 
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 15px; }
 .kv dt { color: var(--muted); }
@@ -317,3 +320,16 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 
 .prose { display: grid; gap: 12px; max-width: 70ch; }
 .prose h2 { margin-top: 12px; }
+
+/* Marca */
+.logo { border-radius: 50%; display: block; flex: none; box-shadow: 0 0 0 3px var(--ring); background: #000; }
+.topbar .logo { box-shadow: 0 0 0 2px var(--ring); }
+.lockup { display: flex; align-items: center; gap: 16px; }
+.lockup-text { display: grid; line-height: 1; flex: 1; min-width: 0; }
+.lockup-kicker { font-weight: 500; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; }
+.lockup-name { font-weight: 700; font-size: 32px; letter-spacing: 0.01em; text-transform: uppercase; padding: 2px 0 6px; border-bottom: 1px solid var(--line); }
+.lockup-tag { color: var(--muted); font-size: 14px; padding-top: 6px; }
+.lockup-lg .lockup-kicker { font-size: 18px; }
+.lockup-lg .lockup-name { font-size: 42px; }
+.lockup-lg .lockup-tag { font-size: 16px; }
+.lockup-lg .logo { box-shadow: 0 0 0 5px var(--ring); }

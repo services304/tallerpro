@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { post } from '../../api';
 import { LangSwitch } from '../../App';
 import { Input } from '../../components/ui';
+import { Lockup } from '../../components/Brand';
 import { useI18n } from '../../i18n';
 
 /** El cliente pide un enlace nuevo con su teléfono o correo y un código de 6 dígitos. */
@@ -38,6 +39,7 @@ export function PortalLogin() {
   return (
     <div className="auth">
       <div className="auth-box">
+        <Lockup size="lg" />
         <div className="row between">
           <h1>{t('portal.loginTitle')}</h1>
           <LangSwitch />

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { get } from './api';
+import { ApiError, get } from './api';
 import type { Lang } from './i18n';
 
 export interface User {
@@ -12,7 +12,8 @@ export interface User {
 }
 
 interface Session {
-  state: 'loading' | 'setup' | 'anon' | 'in';
+  /** 'offline': no se pudo hablar con el servidor (p. ej. se está despertando). */
+  state: 'loading' | 'setup' | 'anon' | 'in' | 'offline';
   user: User | null;
   shop: { shop_name: string; default_lang: Lang } | null;
   refresh: () => Promise<void>;
@@ -20,6 +21,23 @@ interface Session {
 }
 
 const Ctx = createContext<Session | null>(null);
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Pregunta al servidor si ya existe la cuenta del dueño. Reintenta mientras el servidor
+ * gratuito se despierta (puede tardar ~1 minuto), en vez de suponer que ya hay una cuenta.
+ */
+export async function fetchSetupStatus(tries = 8): Promise<{ needsSetup: boolean } | null> {
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await get('/setup/status');
+    } catch {
+      if (i < tries - 1) await wait(Math.min(2000 * (i + 1), 8000));
+    }
+  }
+  return null;
+}
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Session['state']>('loading');
@@ -32,15 +50,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setUser(me.user);
       setShop(me.shop);
       setState('in');
-    } catch {
-      try {
-        const s = await get('/setup/status');
-        setState(s.needsSetup ? 'setup' : 'anon');
-      } catch {
-        setState('anon');
-      }
+      return;
+    } catch (e) {
       setUser(null);
+      // Un 401 es «no hay sesión»; cualquier otro error es «el servidor no respondió bien».
+      if (!(e instanceof ApiError && e.status === 401)) setState('loading');
     }
+    const s = await fetchSetupStatus();
+    setState(s === null ? 'offline' : s.needsSetup ? 'setup' : 'anon');
   }, []);
 
   useEffect(() => {
