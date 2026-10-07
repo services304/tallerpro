@@ -32,6 +32,7 @@ export async function catalogRoutes(app: FastifyInstance) {
         default_lang: z.enum(['fr', 'en', 'es']),
         quiet_start_hour: z.number().int().min(0).max(23),
         quiet_end_hour: z.number().int().min(0).max(23),
+        messaging_mode: z.enum(['auto', 'manual']),
         warranty_text: z.object({ fr: z.string().max(1000), en: z.string().max(1000), es: z.string().max(1000) }),
       }).partial(),
       req.body,

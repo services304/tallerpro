@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNaviga
 import { onAuthLost, onVersionMismatch, patch } from './api';
 import { IconAgenda, IconClients, IconMore, IconOrders, IconToday } from './components/icons';
 import { ErrorBoundary, Loading, ToastProvider } from './components/ui';
+import { OutboxPrompt } from './components/Outbox';
 import { I18nProvider, LANGS, useI18n, type Lang } from './i18n';
 import { SessionProvider, useSession } from './session';
 import { Forgot, Login, Reset, Setup } from './pages/Auth';
@@ -105,6 +106,7 @@ function Shell({ children }: { children: ReactNode }) {
         <ErrorBoundary where={loc.pathname} key={loc.pathname}>
           <main className="main">{children}</main>
         </ErrorBoundary>
+        <OutboxPrompt />
       </div>
     </div>
   );

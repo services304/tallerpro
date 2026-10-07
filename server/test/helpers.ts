@@ -111,6 +111,6 @@ export async function setupOwner(app: FastifyInstance, lang: 'fr' | 'en' | 'es' 
   const a = new Agent(app, lang);
   const r = await a.post('/api/setup', { name: 'Carlos Dueño', email: 'dueno@taller.test', password: 'clave-segura-123', lang, shopName: 'Mécanique Mobile Test' });
   if (r.status !== 200) throw new Error(`setup falló: ${JSON.stringify(r.json)}`);
-  await a.patch('/api/settings', { gst_number: '123456789RT0001', qst_number: '1234567890TQ0001' });
+  await a.patch('/api/settings', { gst_number: '123456789RT0001', qst_number: '1234567890TQ0001', messaging_mode: 'auto' });
   return a;
 }

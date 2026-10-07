@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { post } from '../api';
 import { IconMap, IconPhone, IconTruck } from '../components/icons';
+import { ManualList } from '../components/Outbox';
 import { Empty, LoadError, Loading, mapsUrl, Sheet, Status, Tag, telUrl, useAction, useLoad, vehicleName } from '../components/ui';
 import { useI18n, type Key } from '../i18n';
 
 export function Today() {
   const { t, f } = useI18n();
   const { data, error, loading, reload } = useLoad('/dashboard');
+  const manual = useLoad<any[]>('/notifications/manual');
+  useEffect(() => {
+    const h = () => setTimeout(() => void manual.reload(), 400);
+    window.addEventListener('tp:action-done', h);
+    return () => window.removeEventListener('tp:action-done', h);
+  }, [manual.reload]);
   const [otw, setOtw] = useState<any>(null);
   const { run, busy } = useAction();
 
@@ -30,6 +37,14 @@ export function Today() {
           <p className="muted">{f.dayLong(new Date())}</p>
         </div>
       </div>
+
+      {manual.data && manual.data.length > 0 && (
+        <section className="section">
+          <h2>{t('today.manual', { n: manual.data.length })}</h2>
+          <p className="muted small">{t('outbox.help')}</p>
+          <ManualList items={manual.data} onChange={() => void manual.reload()} />
+        </section>
+      )}
 
       <section className="section" aria-label={t('nav.agenda')}>
         {d.visitsToday.length === 0 ? (

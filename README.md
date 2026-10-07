@@ -18,10 +18,10 @@ Especificación aprobada: documento «TallerPro — Especificación» (claude.ai
 | Repuestos | Solicitud de repuesto, texto listo para pedir precio al proveedor (correo, SMS o copiar), ofertas con costo/plazo/condición, elección con margen automático, pedido al aprobar. |
 | Cotización | Versionada, válida N días, PDF, aprobación por línea con firma (portal o en persona); rechazo total → **factura de revisión automática** y orden «lista»; trabajo adicional rechazado no cancela lo aprobado. |
 | Factura y cobro | Numeración consecutiva sin huecos, TPS 5 % + TVQ 9,975 % (o sin impuestos si no está inscrito), PDF en FR y en el idioma del cliente, pagos parciales (efectivo, Interac, tarjeta, débito, cheque), anulación con nota de crédito, cierre automático al entregar y pagar. |
-| Avisos | SMS, WhatsApp y correo según el canal que elija cada cliente, en su idioma, con plantillas editables; horario de silencio (21 h–8 h); reintentos y cambio de canal si uno falla; «STOP» da de baja; registro de cada envío. |
+| Avisos | Desde tu celular (gratis: la app abre WhatsApp o SMS con el mensaje listo) o automáticos por Twilio; SMS, WhatsApp y correo según el canal que elija cada cliente, en su idioma, con plantillas editables; horario de silencio (21 h–8 h); reintentos y cambio de canal si uno falla; «STOP» da de baja; registro de cada envío. |
 | Portal del cliente | Enlace seguro sin contraseña (7 días) o código de 6 dígitos; avance, fotos compartidas, cotización con firma, facturas, mensajes al taller, idioma, canales, consentimientos, descarga de sus datos. |
 | Seguridad | Validación en el servidor, cabecera anti-CSRF, CSP estricta, sin iframes (clickjacking), fotos privadas sin GPS, CSV sin fórmulas, auditoría de acciones sensibles. |
-| Calidad | 57 pruebas automáticas (servidor y textos en ES/EN/FR) + prueba del flujo completo en navegador; versión visible y aviso si pantalla y servidor no coinciden; pantalla de error que dice qué parte falló. |
+| Calidad | 61 pruebas automáticas (servidor y textos en ES/EN/FR) + prueba del flujo completo en navegador; versión visible y aviso si pantalla y servidor no coinciden; pantalla de error que dice qué parte falló. |
 
 **Pendiente para fase 2** (según el plan aprobado): pagos con tarjeta en el celular (Stripe Tap to Pay) — hoy se registran a mano —, inventario de bodega/vehículo, gastos, reportes de rentabilidad e impuestos, QuickBooks Online, WhatsApp con plantillas aprobadas por Meta.
 
@@ -42,10 +42,19 @@ Pruebas:
 
 ```bash
 createdb tallerpro_test
-npm test          # servidor (51) + interfaz (6)
+npm test          # servidor (55) + interfaz (6)
 ```
 
-## Poner en producción (AWS Lightsail, Montreal)
+## Empezar gratis
+
+La forma de empezar sin costo mensual está en **[deploy/GRATIS-ORACLE.md](deploy/GRATIS-ORACLE.md)**: servidor Oracle Cloud Always Free en Montreal, dirección DuckDNS, avisos enviados desde tu propio WhatsApp o SMS y correos por Gmail.
+
+**Modo de avisos** (Más › Ajustes › Cómo se envían los avisos):
+
+- **Desde mi celular (gratis, por defecto):** cada aviso (visita confirmada, recordatorio, en camino, cotización, listo…) queda «por enviar». La app lo muestra enseguida después de cada acción y en la pantalla Hoy; un toque abre tu WhatsApp o tus SMS con el número y el texto ya escritos. Los correos salen solos si configuraste uno.
+- **Automático (Twilio, con costo):** los SMS y WhatsApp salen solos desde el número del taller.
+
+## Poner en producción con pago (AWS Lightsail, Montreal)
 
 Los datos quedan en Quebec (región `ca-central-1`). Costo de referencia: plan Lightsail con 2 GB de RAM, más los mensajes.
 

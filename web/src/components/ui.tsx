@@ -55,6 +55,8 @@ export function useAction() {
       try {
         const r = await fn();
         if (okMsg) toast(okMsg);
+        // Una acción puede haber preparado avisos para enviar desde el celular.
+        window.dispatchEvent(new Event('tp:action-done'));
         return r;
       } catch (e) {
         toast((e as Error).message, true);

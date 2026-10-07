@@ -23,7 +23,8 @@ export function ChannelPicker({ value, onChange, hasEmail }: { value: string[]; 
   const { t } = useI18n();
   const toggle = (c: string) => onChange(value.includes(c) ? value.filter((x) => x !== c) : [...value, c]);
   return (
-    <Field label={t('clients.channels')}>
+    <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+      <legend style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500, padding: 0, marginBottom: 6 }}>{t('clients.channels')}</legend>
       <div className="row">
         {(['sms', 'whatsapp', 'email'] as const).map((c) => (
           <label key={c} className="check" style={{ paddingRight: 12 }}>
@@ -32,7 +33,7 @@ export function ChannelPicker({ value, onChange, hasEmail }: { value: string[]; 
           </label>
         ))}
       </div>
-    </Field>
+    </fieldset>
   );
 }
 

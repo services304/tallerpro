@@ -39,11 +39,11 @@ export function Privacy() {
         </p>
         <h2>Communication à des tiers</h2>
         <p>
-          Nous ne vendons jamais vos renseignements. Nous faisons appel à des fournisseurs qui les traitent pour notre compte, uniquement pour
-          les besoins du service : hébergement des données et des photos (Amazon Web Services, région de Montréal), envoi des textos et
-          messages WhatsApp (Twilio) et des courriels. Les messages envoyés par ces fournisseurs peuvent transiter hors du Québec; nous avons
-          évalué ces transferts et exigé des protections contractuelles. Lorsque nous demandons un prix à un fournisseur de pièces, nous ne
-          lui communiquons que le véhicule et le NIV, jamais vos coordonnées.
+          Nous ne vendons jamais vos renseignements. Vos données et vos photos sont hébergées dans un centre de données situé à Montréal.
+          Les avis (textos et WhatsApp) sont envoyés depuis le téléphone du garage ou, selon le cas, par un fournisseur d’envoi (Twilio);
+          les courriels passent par notre fournisseur de courriel. Ces messages peuvent transiter hors du Québec; nous avons évalué ces
+          transferts et ne transmettons que le nécessaire. Lorsque nous demandons un prix à un fournisseur de pièces, nous ne lui
+          communiquons que le véhicule et le NIV, jamais vos coordonnées.
         </p>
         <h2>Conservation</h2>
         <p>

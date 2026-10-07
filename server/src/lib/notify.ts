@@ -61,8 +61,8 @@ export async function enqueue(opts: EnqueueOpts, db: Db = pool): Promise<number>
   );
   if (optOut && !optOut.granted && opts.event !== 'portal_code') return 0;
 
-  const s = await one<{ shop_name: string; quiet_start_hour: number; quiet_end_hour: number }>(
-    'SELECT shop_name, quiet_start_hour, quiet_end_hour FROM settings WHERE id=1',
+  const s = await one<{ shop_name: string; quiet_start_hour: number; quiet_end_hour: number; messaging_mode: 'auto' | 'manual' }>(
+    'SELECT shop_name, quiet_start_hour, quiet_end_hour, messaging_mode FROM settings WHERE id=1',
     [],
     db,
   );
@@ -70,15 +70,29 @@ export async function enqueue(opts: EnqueueOpts, db: Db = pool): Promise<number>
   if (opts.withLink) vars.link = await portalLink(c.id, opts.orderId ?? null, db);
 
   const when = URGENT.includes(opts.event) ? new Date() : nextAllowedTime(new Date(), s!.quiet_start_hour, s!.quiet_end_hour);
+  const manual = s!.messaging_mode === 'manual';
+  let channels: Channel[] = opts.channels ?? c.channels;
+  if (manual) {
+    // Desde el celular del dueño, SMS y WhatsApp son un solo envío: se prefiere WhatsApp.
+    const phone = channels.filter((ch) => ch !== 'email');
+    channels = [...(channels.includes('email') ? (['email'] as Channel[]) : []), ...(phone.length ? [phone.includes('whatsapp') ? 'whatsapp' : 'sms'] as Channel[] : [])];
+    // Un aviso nuevo del mismo tipo reemplaza al que seguía sin enviar (p. ej. una nueva versión de la cotización).
+    await q(
+      `UPDATE notifications SET status='skipped', error='replaced' WHERE status='manual' AND client_id=$1 AND event=$2 AND order_id IS NOT DISTINCT FROM $3`,
+      [c.id, opts.event, opts.orderId ?? null],
+      db,
+    );
+  }
   let n = 0;
-  for (const ch of opts.channels ?? c.channels) {
+  for (const ch of channels) {
     const to = opts.to ?? (ch === 'email' ? c.email : c.phone);
     if (!to) continue;
     const tpl = await template(opts.event, ch, c.lang, db);
+    const byHand = manual && ch !== 'email';
     await q(
-      `INSERT INTO notifications (client_id, order_id, event, channel, to_address, subject, body, scheduled_for)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [c.id, opts.orderId ?? null, opts.event, ch, to, fill(tpl.subject, vars), fill(tpl.body, vars), when],
+      `INSERT INTO notifications (client_id, order_id, event, channel, to_address, subject, body, scheduled_for, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [c.id, opts.orderId ?? null, opts.event, ch, to, fill(tpl.subject, vars), fill(tpl.body, vars), byHand ? new Date() : when, byHand ? 'manual' : 'queued'],
       db,
     );
     n++;

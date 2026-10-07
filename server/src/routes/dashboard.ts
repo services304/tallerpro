@@ -48,6 +48,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
           )
         : Promise.resolve(null),
     ]);
-    return { visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, messages, money };
+    const manual = await one<{ n: number }>(`SELECT count(*)::int AS n FROM notifications WHERE status='manual'`);
+    return { visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money };
   });
 }

@@ -35,6 +35,7 @@ export function Settings() {
       quiet_start_hour: Number(s.quiet_start_hour),
       quiet_end_hour: Number(s.quiet_end_hour),
       warranty_text: s.warranty_text,
+      messaging_mode: s.messaging_mode,
     };
     if (await run(() => patch('/settings', body), t('common.saved'))) {
       void refresh();
@@ -73,6 +74,21 @@ export function Settings() {
             <Input label={t('settings.qstNumber')} value={s.qst_number} onChange={set('qst_number')} />
           </div>
         )}
+      </section>
+      <section className="section">
+        <h2>{t('settings.mode')}</h2>
+        <div className="list">
+          {(['manual', 'auto'] as const).map((m) => (
+            <label key={m} className="check item">
+              <input type="radio" name="mode" checked={s.messaging_mode === m} onChange={() => setS({ ...s, messaging_mode: m })} />
+              <span>
+                <strong>{t(m === 'manual' ? 'settings.mode.manual' : 'settings.mode.auto')}</strong>
+                <br />
+                <span className="muted small">{t(m === 'manual' ? 'settings.mode.manualHelp' : 'settings.mode.autoHelp')}</span>
+              </span>
+            </label>
+          ))}
+        </div>
       </section>
       <section className="section">
         <h2>{t('settings.messages')}</h2>
