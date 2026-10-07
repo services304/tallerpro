@@ -333,3 +333,8 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .lockup-lg .lockup-name { font-size: 42px; }
 .lockup-lg .lockup-tag { font-size: 16px; }
 .lockup-lg .logo { box-shadow: 0 0 0 5px var(--ring); }
+
+/* Facturas: botón PDF debajo de cada factura */
+.inv-row { padding-bottom: 12px; }
+.inv-row > .item { padding-bottom: 8px; }
+.inv-actions { padding: 0 16px; }

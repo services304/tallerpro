@@ -48,7 +48,7 @@ export async function invoiceRoutes(app: FastifyInstance) {
     const b = parse(z.object({ status: z.enum(['issued', 'partial', 'paid', 'void', 'unpaid']).optional() }), req.query);
     return q(
       `SELECT i.id, i.number, i.kind, i.total_cents, i.paid_cents, i.status, i.issued_at, i.order_id,
-              c.name AS client_name, o.number AS order_number
+              c.name AS client_name, c.lang AS client_lang, o.number AS order_number
          FROM invoices i JOIN clients c ON c.id=i.client_id LEFT JOIN orders o ON o.id=i.order_id
         WHERE ($1::text IS NULL OR i.status=$1 OR ($1='unpaid' AND i.status IN ('issued','partial')))
         ORDER BY i.number DESC LIMIT 300`,

@@ -24,7 +24,7 @@ export function Invoices() {
       {data && (
         <ul className="list">
           {data.map((i) => (
-            <li key={i.id}>
+            <li key={i.id} className="inv-row">
               <Link className="item" to={i.order_id ? `/orders/${i.order_id}` : '#'}>
                 <div className="item-top">
                   <span className="row">
@@ -42,6 +42,16 @@ export function Invoices() {
                   {i.paid_cents > 0 && i.status !== 'paid' && ` — ${t('invoice.paid')} ${f.money(i.paid_cents)}`}
                 </span>
               </Link>
+              <div className="row inv-actions">
+                <a className="btn small" href={`/api/invoices/${i.id}/pdf?lang=${i.client_lang ?? 'fr'}`} target="_blank" rel="noreferrer">
+                  {t('common.pdf')}
+                </a>
+                {i.client_lang && i.client_lang !== 'fr' && (
+                  <a className="btn small ghost" href={`/api/invoices/${i.id}/pdf?lang=fr`} target="_blank" rel="noreferrer">
+                    {t('common.pdf')} (FR)
+                  </a>
+                )}
+              </div>
             </li>
           ))}
         </ul>
