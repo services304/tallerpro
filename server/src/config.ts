@@ -27,14 +27,17 @@ export const config = {
   env: env.NODE_ENV ?? 'development',
   port: Number(env.PORT ?? 3000),
   host: env.HOST ?? '0.0.0.0',
-  databaseUrl: env.DATABASE_URL ?? 'postgres://postgres@localhost:5432/tallerpro?host=/tmp',
-  publicUrl: (env.PUBLIC_URL ?? 'http://localhost:5173').replace(/\/$/, ''),
+  // Neon agrega «channel_binding=require»; se quita para máxima compatibilidad (la conexión sigue cifrada con sslmode).
+  databaseUrl: (env.DATABASE_URL ?? 'postgres://postgres@localhost:5432/tallerpro?host=/tmp').replace(/[?&]channel_binding=[^&]*/, (m) => (m.startsWith('?') ? '?' : '')).replace(/\?&/, '?').replace(/\?$/, ''),
+  // En Render, RENDER_EXTERNAL_URL trae la dirección pública automáticamente.
+  publicUrl: (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  demo: bool(env.DEMO_MODE, false),
   cookieSecure: bool(env.COOKIE_SECURE, env.NODE_ENV === 'production'),
   sessionIdleHours: Number(env.SESSION_IDLE_HOURS ?? 8),
   portalLinkDays: Number(env.PORTAL_LINK_DAYS ?? 7),
   webDist: env.WEB_DIST ?? path.join(here, '..', '..', 'web', 'dist'),
   storage: {
-    driver: (env.STORAGE_DRIVER ?? 'local') as 'local' | 's3',
+    driver: (env.STORAGE_DRIVER ?? 'local') as 'local' | 's3' | 'db',
     dir: env.STORAGE_DIR ?? path.join(here, '..', 'storage'),
     s3Bucket: env.S3_BUCKET ?? '',
     s3Region: env.S3_REGION ?? 'ca-central-1',

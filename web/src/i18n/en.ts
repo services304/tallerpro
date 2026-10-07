@@ -4,6 +4,7 @@ export const en: Record<Key, string> = {
   'app.loading': 'Loading…',
   'app.offline': "You're offline. Your changes will be saved when the signal comes back.",
   'app.versionMismatch': 'A new version of the app is available ({server}). Reload to update.',
+  'app.demo': 'Test version: use made-up data only, not real clients.',
   'app.reload': 'Reload',
   'app.crash': 'Something failed on this screen',
   'app.crashDetail': 'Part that failed: {where}. Detail: {message}',

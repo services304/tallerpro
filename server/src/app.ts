@@ -157,7 +157,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     await q('SELECT 1');
     return { ok: true, version: config.version };
   });
-  app.get('/api/version', async () => ({ version: config.version }));
+  app.get('/api/version', async () => ({ version: config.version, demo: config.demo }));
 
   await app.register(authRoutes, { prefix: '/api' });
   await app.register(clientRoutes, { prefix: '/api' });

@@ -4,6 +4,7 @@ export const fr: Record<Key, string> = {
   'app.loading': 'Chargement…',
   'app.offline': 'Hors ligne. Vos changements seront enregistrés au retour du signal.',
   'app.versionMismatch': "Une nouvelle version de l'app est disponible ({server}). Rechargez pour la mettre à jour.",
+  'app.demo': "Version d'essai : utilisez seulement des données fictives, pas de vrais clients.",
   'app.reload': 'Recharger',
   'app.crash': 'Un problème est survenu sur cet écran',
   'app.crashDetail': 'Partie en cause : {where}. Détail : {message}',

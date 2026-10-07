@@ -1,0 +1,18 @@
+# Prueba gratuita en Render (plan free) con la base de datos en Neon.
+# Solo para datos de prueba: el servidor no está en Quebec.
+services:
+  - type: web
+    name: tallerpro
+    runtime: docker
+    plan: free
+    region: virginia
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STORAGE_DRIVER
+        value: db
+      - key: DEMO_MODE
+        value: "1"
+      - key: DATABASE_URL
+        sync: false

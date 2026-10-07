@@ -57,8 +57,37 @@ class S3Storage implements Storage {
   }
 }
 
+/** Archivos dentro de PostgreSQL: para pruebas en servicios gratuitos sin disco permanente. */
+class DbStorage implements Storage {
+  private db = import('../db.js');
+  async put(key: string, data: Buffer, mime: string) {
+    const { q } = await this.db;
+    await q(
+      `INSERT INTO stored_files (key, mime, data) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET mime=EXCLUDED.mime, data=EXCLUDED.data`,
+      [safeKey(key), mime, data],
+    );
+  }
+  async get(key: string) {
+    const { one } = await this.db;
+    const r = await one<{ data: Buffer }>('SELECT data FROM stored_files WHERE key=$1', [safeKey(key)]);
+    return r?.data ?? null;
+  }
+  async del(key: string) {
+    const { q } = await this.db;
+    await q('DELETE FROM stored_files WHERE key=$1', [safeKey(key)]);
+  }
+}
+
 export let storage: Storage =
-  config.storage.driver === 's3' ? new S3Storage(config.storage.s3Bucket) : new LocalStorage(config.storage.dir);
+  config.storage.driver === 's3'
+    ? new S3Storage(config.storage.s3Bucket)
+    : config.storage.driver === 'db'
+      ? new DbStorage()
+      : new LocalStorage(config.storage.dir);
+
+export function dbStorage(): Storage {
+  return new DbStorage();
+}
 
 export function setStorage(s: Storage) {
   storage = s;

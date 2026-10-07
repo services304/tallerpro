@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router';
-import { onAuthLost, onVersionMismatch, patch } from './api';
+import { get, onAuthLost, onVersionMismatch, patch } from './api';
 import { IconAgenda, IconClients, IconMore, IconOrders, IconToday } from './components/icons';
 import { ErrorBoundary, Loading, ToastProvider } from './components/ui';
 import { OutboxPrompt } from './components/Outbox';
@@ -42,6 +42,10 @@ function Banners() {
   const { t } = useI18n();
   const [online, setOnline] = useState(navigator.onLine);
   const [newVersion, setNewVersion] = useState<string | null>(null);
+  const [demo, setDemo] = useState(false);
+  useEffect(() => {
+    get('/version').then((v) => setDemo(Boolean(v.demo))).catch(() => {});
+  }, []);
   useEffect(() => {
     const on = () => setOnline(true);
     const off = () => setOnline(false);
@@ -56,6 +60,7 @@ function Banners() {
   }, []);
   return (
     <>
+      {demo && <div className="banner warn" role="note">{t('app.demo')}</div>}
       {!online && <div className="banner off" role="status">{t('app.offline')}</div>}
       {newVersion && (
         <div className="banner warn" role="status">

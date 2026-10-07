@@ -3,6 +3,7 @@ export const es = {
   'app.loading': 'Cargando…',
   'app.offline': 'Sin conexión. Lo que hagas se guardará cuando vuelva la señal.',
   'app.versionMismatch': 'Hay una versión nueva de la app ({server}). Recarga para actualizar.',
+  'app.demo': 'Versión de prueba: usa solo datos inventados, no clientes reales.',
   'app.reload': 'Recargar',
   'app.crash': 'Algo falló en esta pantalla',
   'app.crashDetail': 'Parte que falló: {where}. Detalle: {message}',
