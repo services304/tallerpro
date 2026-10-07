@@ -176,11 +176,23 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
 
   // La app web compilada (PWA). Cualquier ruta que no sea /api devuelve index.html.
   if (existsSync(config.webDist)) {
-    await app.register(fastifyStatic, { root: config.webDist, wildcard: false });
+    await app.register(fastifyStatic, {
+      root: config.webDist,
+      wildcard: false,
+      // Archivos con huella (/assets/…) no cambian nunca; el resto se revisa en cada visita.
+      setHeaders: (res, filePath) => {
+        res.header('Cache-Control', /[\\/]assets[\\/]/.test(filePath) ? 'public, max-age=31536000, immutable' : 'no-cache');
+      },
+    });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/')) {
         return reply.status(404).send({ error: 'not_found', message: t(req.lang, 'not_found') });
       }
+      // Un archivo de la app que no existe (p. ej. de una versión anterior) es un 404, no la página.
+      if (req.url.startsWith('/assets/') || /\.(js|css|png|webp|svg|json|woff2?)(\?|$)/.test(req.url)) {
+        return reply.status(404).type('text/plain').send('not found');
+      }
+      reply.header('Cache-Control', 'no-cache');
       return reply.type('text/html').sendFile('index.html');
     });
   }
