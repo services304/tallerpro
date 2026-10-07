@@ -9,6 +9,17 @@ import { getSettings } from '../services/orders.js';
 
 const uuid = z.string().uuid();
 
+/** Disponibilidad de una pieza en el proveedor (menú desplegable) y su plazo típico en días. */
+export const AVAILABILITY = {
+  in_stock: 0,
+  next_day: 1,
+  two_three_days: 3,
+  on_order: 7,
+  over_week: 14,
+  unavailable: null,
+} as const;
+const availability = z.enum(Object.keys(AVAILABILITY) as [keyof typeof AVAILABILITY, ...(keyof typeof AVAILABILITY)[]]);
+
 /** Mensaje para pedir precio a un proveedor (siempre en francés: proveedores de Quebec). */
 function supplierMessage(shop: string, vehicle: string, vin: string | null, parts: { description: string; part_number: string; quantity: number }[]) {
   const list = parts.map((p) => `- ${p.quantity} × ${p.description}${p.part_number ? ` (${p.part_number})` : ''}`).join('\n');
@@ -95,7 +106,7 @@ export async function partsRoutes(app: FastifyInstance) {
       z.object({
         supplier_id: uuid,
         unit_cost_cents: z.number().int().positive().max(100_000_000),
-        availability: z.string().trim().max(200).default(''),
+        availability: availability.default('in_stock'),
         lead_days: z.number().int().min(0).max(365).nullable().optional(),
         condition: z.enum(['new', 'used', 'rebuilt']).default('new'),
         channel: z.enum(['email', 'sms', 'phone', 'other']).default('phone'),
@@ -108,7 +119,7 @@ export async function partsRoutes(app: FastifyInstance) {
     const offer = await one(
       `INSERT INTO supplier_offers (request_id, supplier_id, unit_cost_cents, availability, lead_days, condition, channel, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [id, b.supplier_id, b.unit_cost_cents, b.availability, b.lead_days ?? null, b.condition, b.channel, b.notes],
+      [id, b.supplier_id, b.unit_cost_cents, b.availability, b.lead_days ?? AVAILABILITY[b.availability], b.condition, b.channel, b.notes],
     );
     await q(`UPDATE parts_requests SET status='quoted' WHERE id=$1 AND status='pending'`, [id]);
     return offer;
@@ -138,6 +149,7 @@ export async function partsRoutes(app: FastifyInstance) {
         c,
       );
       if (!off) throw notFound();
+      if (off.availability === 'unavailable') throw new AppError(409, 'parts.unavailable');
       const line = await one<{ id: string; approval: string }>('SELECT id, approval FROM order_lines WHERE parts_request_id=$1', [off.request_id], c);
       if (line && line.approval !== 'pending') throw new AppError(409, 'order.not_editable', { status: line.approval });
       await q('UPDATE supplier_offers SET chosen=false WHERE request_id=$1', [off.request_id], c);

@@ -125,12 +125,16 @@ export function QuoteTab({ d, reload }: { d: any; reload: () => void }) {
             <QuoteLines lines={decide.lines} decisions={decisions} setDecision={(id, v) => setDecisions({ ...decisions, [id]: v })} />
             <Input label={t('intake.signerName')} value={signer} onChange={(e) => setSigner(e.target.value)} />
             <SignaturePad ref={sig} />
+            <button type="button" className="btn ghost small" onClick={() => sig.current?.clear()}>
+              {t('quote.clearSignature')}
+            </button>
+            {decide.lines.some((l: any) => !decisions[l.id]) && <p className="muted small">{t('quote.pickEach')}</p>}
             <button
               className="btn primary"
               disabled={busy || decide.lines.some((l: any) => !decisions[l.id])}
               onClick={async () => {
                 const signature = sig.current?.toDataUrl() ?? undefined;
-                const r = await run(() => post(`/quotes/${decide.id}/decision`, { decisions, signer_name: signer, signature }), t('quote.decisionSaved'));
+                const r = await run(() => post(`/quotes/${decide.id}/decision`, { decisions, signer_name: signer.trim() || d.client.name, signature }), t('quote.decisionSaved'));
                 if (r) {
                   setDecide(null);
                   reload();

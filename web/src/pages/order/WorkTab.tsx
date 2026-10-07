@@ -58,15 +58,29 @@ function Notes({ d, reload }: { d: any; reload: () => void }) {
   );
 }
 
-function AddLine({ d, kind, onDone }: { d: any; kind: 'labor' | 'fee' | 'discount'; onDone: () => void }) {
-  const { t, f } = useI18n();
+/** Nombre de un tipo de trabajo en un idioma (con respaldo a los otros). */
+export function workName(w: any, lang: string) {
+  const n = w?.names ?? {};
+  return n[lang] || n.fr || n.es || n.en || w?.name || '';
+}
+
+export const WORK_CATEGORIES = ['maintenance', 'tires', 'brakes', 'electrical', 'engine', 'suspension', 'exhaust', 'climate', 'other'] as const;
+
+type LineKind = 'labor' | 'part' | 'fee' | 'discount';
+
+function AddLine({ d, kind, onDone }: { d: any; kind: LineKind; onDone: () => void }) {
+  const { t, f, lang } = useI18n();
   const types = useLoad<any[]>('/work-types');
   const { run, busy } = useAction();
   const [workType, setWorkType] = useState('');
   const [description, setDescription] = useState('');
   const [qty, setQty] = useState('1');
   const [price, setPrice] = useState<number | null>(kind === 'labor' ? d.settings.labor_rate_cents : null);
+  const [cost, setCost] = useState<number | null>(null);
+  const [condition, setCondition] = useState<'new' | 'used' | 'rebuilt'>('new');
   const wt = types.data?.find((x) => x.id === workType);
+  const active = types.data?.filter((x) => x.active) ?? [];
+  const margin = d.settings.parts_margin_bp / 10000;
 
   return (
     <div className="stack">
@@ -78,28 +92,54 @@ function AddLine({ d, kind, onDone }: { d: any; kind: 'labor' | 'fee' | 'discoun
             const w = types.data?.find((x) => x.id === e.target.value);
             setWorkType(e.target.value);
             if (w) {
-              setDescription(w.name);
+              // La línea se escribe en el idioma del cliente (sale así en la cotización y la factura).
+              setDescription(workName(w, d.client.lang));
               setPrice(w.price_cents);
               setQty(w.mode === 'hourly' && w.est_minutes ? String(Math.round((w.est_minutes / 60) * 4) / 4) : '1');
             }
           }}
         >
           <option value="">{t('order.customPrice')}</option>
-          {types.data
-            ?.filter((x) => x.active)
-            .map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.name} — {f.money(x.price_cents)}
-                {x.mode === 'hourly' ? ' /h' : ''}
-              </option>
-            ))}
+          {WORK_CATEGORIES.filter((c) => active.some((x) => x.category === c)).map((c) => (
+            <optgroup key={c} label={t(`workTypes.cat.${c}` as Key)}>
+              {active
+                .filter((x) => x.category === c)
+                .map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {workName(x, lang)} — {f.money(x.price_cents)}
+                    {x.mode === 'hourly' ? ' /h' : ''}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
         </Select>
       )}
       <Input label={t('common.description')} required value={description} onChange={(e) => setDescription(e.target.value)} />
       <div className="grid2">
         <Input label={kind === 'labor' && (!wt || wt.mode === 'hourly') ? t('order.hours') : t('common.quantity')} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
-        <MoneyInput label={t('common.price')} cents={price} onChange={setPrice} />
+        <MoneyInput label={kind === 'part' ? t('order.clientPrice') : t('common.price')} cents={price} onChange={setPrice} />
       </div>
+      {kind === 'part' && (
+        <>
+          <MoneyInput
+            label={`${t('order.unitCost')} (${t('common.optional')})`}
+            cents={cost}
+            onChange={setCost}
+            hint={cost ? t('order.suggestedPrice', { p: f.money(Math.round(cost * (1 + margin))) }) : t('order.costHelp')}
+          />
+          {cost !== null && cost > 0 && price === null && (
+            <button type="button" className="btn small" onClick={() => setPrice(Math.round(cost * (1 + margin)))}>
+              {t('order.useSuggested')}
+            </button>
+          )}
+          <Seg
+            label={t('order.condition')}
+            value={condition}
+            onChange={setCondition}
+            options={(['new', 'used', 'rebuilt'] as const).map((c) => ({ value: c, label: t(`order.condition.${c}` as Key) }))}
+          />
+        </>
+      )}
       <button
         className="btn primary"
         disabled={busy || !description || price === null}
@@ -111,6 +151,7 @@ function AddLine({ d, kind, onDone }: { d: any; kind: 'labor' | 'fee' | 'discoun
               work_type_id: workType || null,
               quantity: Number(qty.replace(',', '.')) || 1,
               unit_price_cents: price,
+              ...(kind === 'part' ? { unit_cost_cents: cost ?? 0, part_condition: condition } : {}),
             }),
           );
           if (r) onDone();
@@ -122,10 +163,42 @@ function AddLine({ d, kind, onDone }: { d: any; kind: 'labor' | 'fee' | 'discoun
   );
 }
 
+/** Corregir cantidad y precio de una línea que el cliente todavía no aprobó. */
+function EditLine({ d, line, onDone }: { d: any; line: any; onDone: () => void }) {
+  const { t } = useI18n();
+  const { run, busy } = useAction();
+  const [description, setDescription] = useState(line.description);
+  const [qty, setQty] = useState(String(line.quantity));
+  const [price, setPrice] = useState<number | null>(line.unit_price_cents);
+  return (
+    <div className="stack">
+      <Input label={t('common.description')} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <div className="grid2">
+        <Input label={t('common.quantity')} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
+        <MoneyInput label={line.kind === 'part' ? t('order.clientPrice') : t('common.price')} cents={price} onChange={setPrice} />
+      </div>
+      <button
+        className="btn primary"
+        disabled={busy || !description || price === null}
+        onClick={async () => {
+          const r = await run(
+            () => patch(`/orders/${d.order.id}/lines/${line.id}`, { description, quantity: Number(qty.replace(',', '.')) || 1, unit_price_cents: price }),
+            t('common.saved'),
+          );
+          if (r) onDone();
+        }}
+      >
+        {t('common.save')}
+      </button>
+    </div>
+  );
+}
+
 function Lines({ d, reload }: { d: any; reload: () => void }) {
   const { t, f } = useI18n();
   const { run } = useAction();
-  const [adding, setAdding] = useState<null | 'labor' | 'fee' | 'discount'>(null);
+  const [adding, setAdding] = useState<null | LineKind>(null);
+  const [editing, setEditing] = useState<any>(null);
   const editable = EDITABLE.includes(d.order.status);
   const tone = { pending: 's-wait', approved: 's-ok', rejected: 's-bad' } as Record<string, string>;
   return (
@@ -135,6 +208,7 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
         {editable && (
           <div className="row">
             <button className="btn small" onClick={() => setAdding('labor')}>+ {t('order.addLabor')}</button>
+            <button className="btn small" onClick={() => setAdding('part')}>+ {t('order.addManualPart')}</button>
             <button className="btn small" onClick={() => setAdding('fee')}>+ {t('order.addFee')}</button>
             <button className="btn small" onClick={() => setAdding('discount')}>+ {t('order.addDiscount')}</button>
           </div>
@@ -163,6 +237,11 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
                 <td className="num">{l.quantity}</td>
                 <td className="num">{f.money(Math.round(l.quantity * l.unit_price_cents) * (l.kind === 'discount' ? -1 : 1))}</td>
                 <td className="num">
+                  {editable && l.approval === 'pending' && (
+                    <button className="btn ghost small" onClick={() => setEditing(l)}>
+                      {t('common.edit')}
+                    </button>
+                  )}
                   {editable && l.approval === 'pending' && !l.parts_request_id && (
                     <button
                       className="btn ghost small"
@@ -184,7 +263,23 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
         <Totals totals={d.totals.approved} label={t('order.approvedTotal')} />
         {d.totals.pending.subtotal_cents > 0 && <Totals totals={d.totals.pending} label={t('order.pendingTotal')} />}
       </div>
-      <Sheet open={Boolean(adding)} onClose={() => setAdding(null)} title={adding ? t(adding === 'labor' ? 'order.addLabor' : adding === 'fee' ? 'order.addFee' : 'order.addDiscount') : ''}>
+      <Sheet open={Boolean(editing)} onClose={() => setEditing(null)} title={t('common.edit')}>
+        {editing && (
+          <EditLine
+            d={d}
+            line={editing}
+            onDone={() => {
+              setEditing(null);
+              reload();
+            }}
+          />
+        )}
+      </Sheet>
+      <Sheet
+        open={Boolean(adding)}
+        onClose={() => setAdding(null)}
+        title={adding ? t(({ labor: 'order.addLabor', part: 'order.addManualPart', fee: 'order.addFee', discount: 'order.addDiscount' } as const)[adding]) : ''}
+      >
         {adding && (
           <AddLine
             d={d}
@@ -200,6 +295,17 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
   );
 }
 
+/** Opciones de disponibilidad en el proveedor y su plazo típico (en días). */
+const AVAILABILITY = [
+  ['in_stock', 0],
+  ['next_day', 1],
+  ['two_three_days', 3],
+  ['on_order', 7],
+  ['over_week', 14],
+  ['unavailable', null],
+] as const;
+const AVAIL_KEYS: readonly string[] = AVAILABILITY.map(([k]) => k);
+
 function Parts({ d, reload }: { d: any; reload: () => void }) {
   const { t, f } = useI18n();
   const toast = useToast();
@@ -211,7 +317,10 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
   const [askForm, setAskForm] = useState({ supplier_id: '', channel: 'none' });
   const [askText, setAskText] = useState('');
   const [offerFor, setOfferFor] = useState<any>(null);
-  const [offer, setOffer] = useState({ supplier_id: '', cost: null as number | null, lead_days: '', condition: 'new', channel: 'phone', availability: '' });
+  const [offer, setOffer] = useState({ supplier_id: '', cost: null as number | null, lead_days: '0', condition: 'new', channel: 'phone', availability: 'in_stock' });
+  const [choosing, setChoosing] = useState<any>(null);
+  const [clientPrice, setClientPrice] = useState<number | null>(null);
+  const availLabel = (a: string) => (AVAIL_KEYS.includes(a) ? t(`order.avail.${a}` as Key) : a);
   const margin = d.settings.parts_margin_bp / 10000;
   const active = suppliers.data?.filter((s) => s.active) ?? [];
   const canEdit = EDITABLE.includes(d.order.status);
@@ -247,7 +356,7 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
           {p.offers.length > 0 && (
             <ul className="list">
               {p.offers.map((o: any) => (
-                <li key={o.id} className="item">
+                <li key={o.id} className="item" style={o.availability === 'unavailable' ? { opacity: 0.55 } : undefined}>
                   <div className="item-top">
                     <span>
                       <strong>{o.supplier_name}</strong> — {f.money(o.unit_cost_cents)}
@@ -255,8 +364,16 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
                     {o.chosen ? (
                       <span className="status s-ok">{t('order.chosen')}</span>
                     ) : (
-                      ['pending', 'quoted', 'chosen'].includes(p.status) && (
-                        <button className="btn small" disabled={busy} onClick={async () => (await run(() => post(`/offers/${o.id}/choose`))) && reload()}>
+                      ['pending', 'quoted', 'chosen'].includes(p.status) &&
+                      o.availability !== 'unavailable' && (
+                        <button
+                          className="btn small"
+                          disabled={busy}
+                          onClick={() => {
+                            setChoosing({ ...o, part: p });
+                            setClientPrice(Math.round(o.unit_cost_cents * (1 + margin)));
+                          }}
+                        >
                           {t('order.choose')}
                         </button>
                       )
@@ -264,8 +381,9 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
                   </div>
                   <span className="muted small">
                     {t(`order.condition.${o.condition}` as Key)}
-                    {o.lead_days !== null && ` — ${t('order.leadDays')}: ${o.lead_days}`}
-                    {o.availability && ` — ${o.availability}`} — {t('order.sellPrice', { p: f.money(Math.round(o.unit_cost_cents * (1 + margin))) })}
+                    {o.availability && ` — ${availLabel(o.availability)}`}
+                    {o.lead_days !== null && o.availability !== 'unavailable' && ` — ${t('order.leadDays')}: ${o.lead_days}`}
+                    {o.availability !== 'unavailable' && ` — ${t('order.sellPrice', { p: f.money(Math.round(o.unit_cost_cents * (1 + margin))) })}`}
                   </span>
                 </li>
               ))}
@@ -273,7 +391,7 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
           )}
           <div className="row">
             {['pending', 'quoted', 'chosen'].includes(p.status) && (
-              <button className="btn small" onClick={() => (setOfferFor(p), setOffer({ ...offer, supplier_id: active[0]?.id ?? '', cost: null }))}>
+              <button className="btn small" onClick={() => (setOfferFor(p), setOffer({ ...offer, supplier_id: active[0]?.id ?? '', cost: null, availability: 'in_stock', lead_days: '0' }))}>
                 + {t('order.addOffer')}
               </button>
             )}
@@ -359,9 +477,25 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
                 </option>
               ))}
             </Select>
+            <Select
+              label={t('order.availability')}
+              value={offer.availability}
+              onChange={(e) => {
+                const days = AVAILABILITY.find(([k]) => k === e.target.value)?.[1];
+                setOffer({ ...offer, availability: e.target.value, lead_days: days === null || days === undefined ? '' : String(days) });
+              }}
+            >
+              {AVAILABILITY.map(([k]) => (
+                <option key={k} value={k}>
+                  {t(`order.avail.${k}` as Key)}
+                </option>
+              ))}
+            </Select>
             <div className="grid2">
               <MoneyInput label={t('order.unitCost')} cents={offer.cost} onChange={(cost) => setOffer({ ...offer, cost })} hint={offer.cost ? t('order.sellPrice', { p: f.money(Math.round(offer.cost * (1 + margin))) }) : undefined} />
-              <Input label={t('order.leadDays')} inputMode="numeric" value={offer.lead_days} onChange={(e) => setOffer({ ...offer, lead_days: e.target.value })} />
+              {offer.availability !== 'unavailable' && (
+                <Input label={t('order.leadDays')} inputMode="numeric" value={offer.lead_days} onChange={(e) => setOffer({ ...offer, lead_days: e.target.value })} />
+              )}
             </div>
             <Seg
               label={t('order.condition')}
@@ -376,7 +510,6 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
                 </option>
               ))}
             </Select>
-            <Input label={`${t('order.availability')} (${t('common.optional')})`} value={offer.availability} onChange={(e) => setOffer({ ...offer, availability: e.target.value })} />
             <button
               className="btn primary"
               disabled={busy || !offer.cost || !offer.supplier_id}
@@ -385,7 +518,7 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
                   post(`/parts/${offerFor.id}/offers`, {
                     supplier_id: offer.supplier_id,
                     unit_cost_cents: offer.cost,
-                    lead_days: offer.lead_days ? Number(offer.lead_days) : null,
+                    lead_days: offer.availability === 'unavailable' || offer.lead_days === '' ? null : Number(offer.lead_days),
                     condition: offer.condition,
                     channel: offer.channel,
                     availability: offer.availability,
@@ -398,6 +531,31 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
               }}
             >
               {t('common.save')}
+            </button>
+          </>
+        )}
+      </Sheet>
+
+      <Sheet open={Boolean(choosing)} onClose={() => setChoosing(null)} title={`${t('order.choose')} — ${choosing?.part.description ?? ''}`}>
+        {choosing && (
+          <>
+            <p className="muted small">
+              {choosing.supplier_name} — {t('order.unitCost')}: {f.money(choosing.unit_cost_cents)} — {t('order.suggestedPrice', { p: f.money(Math.round(choosing.unit_cost_cents * (1 + margin))) })}
+            </p>
+            <MoneyInput label={t('order.clientPrice')} cents={clientPrice} onChange={setClientPrice} hint={t('order.clientPriceHelp')} />
+            {clientPrice !== null && clientPrice < choosing.unit_cost_cents && <p className="notice">{t('order.belowCost')}</p>}
+            <button
+              className="btn primary"
+              disabled={busy || clientPrice === null}
+              onClick={async () => {
+                const r = await run(() => post(`/offers/${choosing.id}/choose`, { unit_price_cents: clientPrice }));
+                if (r) {
+                  setChoosing(null);
+                  reload();
+                }
+              }}
+            >
+              {t('order.choose')}
             </button>
           </>
         )}

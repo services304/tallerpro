@@ -4,6 +4,7 @@ import { parse, rateLimit, requireUser, SESSION_COOKIE } from '../app.js';
 import { config } from '../config.js';
 import { one, q, tx } from '../db.js';
 import { audit } from '../lib/audit.js';
+import { addSuggestedWork } from '../lib/workCatalog.js';
 import { AppError } from '../lib/errors.js';
 import { t } from '../lib/i18n.js';
 import { sendStaffEmail } from '../lib/notify.js';
@@ -47,6 +48,8 @@ export async function authRoutes(app: FastifyInstance) {
       const n = await one<{ n: number }>('SELECT count(*)::int AS n FROM users', [], c);
       if (n!.n > 0) throw new AppError(409, 'auth.setup_done');
       await q('UPDATE settings SET shop_name=$1, shop_email=$2, default_lang=$3 WHERE id=1', [b.shopName, b.email, b.lang === 'es' ? 'fr' : b.lang], c);
+      // Lista de trabajos comunes con precio sugerido, lista para usar.
+      await addSuggestedWork(c as any);
       return one<{ id: string }>(
         `INSERT INTO users (name, email, role, is_mechanic, password_hash, lang) VALUES ($1,$2,'admin',true,$3,$4) RETURNING id`,
         [b.name, b.email, hash, b.lang],

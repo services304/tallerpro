@@ -1,22 +1,43 @@
 import { useState } from 'react';
 import { patch, post } from '../api';
-import { Check, Empty, Input, LoadError, Loading, MoneyInput, Seg, Sheet, TextArea, useAction, useLoad } from '../components/ui';
-import { useI18n } from '../i18n';
+import { Check, Empty, Input, LoadError, Loading, MoneyInput, Seg, Select, Sheet, TextArea, useAction, useLoad, useToast } from '../components/ui';
+import { useI18n, type Key } from '../i18n';
+import { WORK_CATEGORIES, workName } from './order/WorkTab';
 
 export function WorkTypes() {
-  const { t, f } = useI18n();
+  const { t, f, lang } = useI18n();
+  const toast = useToast();
   const { data, error, loading, reload } = useLoad<any[]>('/work-types');
   const [edit, setEdit] = useState<any>(null);
   const { run, busy } = useAction();
+  const hasName = edit && ['fr', 'en', 'es'].some((l) => edit.names?.[l]?.trim());
 
   async function save() {
-    const body = { name: edit.name, mode: edit.mode, price_cents: edit.price_cents ?? 0, est_minutes: edit.est_minutes ? Number(edit.est_minutes) : null, active: edit.active };
+    const names = Object.fromEntries(Object.entries(edit.names ?? {}).map(([k, v]) => [k, String(v ?? '').trim()]).filter(([, v]) => v));
+    const body = {
+      names,
+      category: edit.category ?? 'other',
+      mode: edit.mode,
+      price_cents: edit.price_cents ?? 0,
+      est_minutes: edit.est_minutes ? Number(edit.est_minutes) : null,
+      active: edit.active,
+    };
     const r = await run(() => (edit.id ? patch(`/work-types/${edit.id}`, body) : post('/work-types', body)), t('common.saved'));
     if (r) {
       setEdit(null);
       reload();
     }
   }
+
+  async function addSuggested() {
+    const r = await run(() => post<{ added: number }>('/work-types/suggested', {}));
+    if (r) {
+      toast(r.added ? t('workTypes.addedSuggested', { n: r.added }) : t('workTypes.suggestedUpToDate'));
+      reload();
+    }
+  }
+
+  const cats = WORK_CATEGORIES.filter((c) => data?.some((w) => (w.category ?? 'other') === c));
 
   return (
     <>
@@ -25,38 +46,63 @@ export function WorkTypes() {
           <h1>{t('workTypes.title')}</h1>
           <p className="muted">{t('workTypes.help')}</p>
         </div>
-        <button className="btn primary" onClick={() => setEdit({ name: '', mode: 'fixed', price_cents: null, est_minutes: '', active: true })}>
-          {t('common.add')}
-        </button>
+        <div className="row">
+          <button className="btn" disabled={busy} onClick={addSuggested}>
+            {t('workTypes.addSuggested')}
+          </button>
+          <button className="btn primary" onClick={() => setEdit({ names: { fr: '', en: '', es: '' }, category: 'other', mode: 'fixed', price_cents: null, est_minutes: '', active: true })}>
+            {t('common.add')}
+          </button>
+        </div>
       </div>
+      <p className="notice small">{t('workTypes.priceNote')}</p>
       {loading && !data && <Loading />}
       {error && <LoadError error={error} retry={reload} />}
       {data?.length === 0 && <Empty>{t('workTypes.empty')}</Empty>}
-      {data && data.length > 0 && (
-        <ul className="list">
-          {data.map((w) => (
-            <li key={w.id}>
-              <button className="item" style={{ width: '100%', textAlign: 'left', background: 'none', border: 0, color: 'inherit', font: 'inherit', cursor: 'pointer', opacity: w.active ? 1 : 0.5 }} onClick={() => setEdit(w)}>
-                <div className="item-top">
-                  <span className="item-title">{w.name}</span>
-                  <strong>
-                    {f.money(w.price_cents)}
-                    {w.mode === 'hourly' ? ' /h' : ''}
-                  </strong>
-                </div>
-                <span className="muted small">
-                  {t(w.mode === 'hourly' ? 'workTypes.mode.hourly' : 'workTypes.mode.fixed')}
-                  {w.est_minutes ? ` — ${w.est_minutes} min` : ''}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {cats.map((c) => (
+        <section className="section" key={c}>
+          <h2>{t(`workTypes.cat.${c}` as Key)}</h2>
+          <ul className="list">
+            {data!
+              .filter((w) => (w.category ?? 'other') === c)
+              .map((w) => (
+                <li key={w.id}>
+                  <button
+                    className="item"
+                    style={{ width: '100%', textAlign: 'left', background: 'none', border: 0, color: 'inherit', font: 'inherit', cursor: 'pointer', opacity: w.active ? 1 : 0.5 }}
+                    onClick={() => setEdit({ ...w, names: { fr: '', en: '', es: '', ...(w.names ?? {}) } })}
+                  >
+                    <div className="item-top">
+                      <span className="item-title">{workName(w, lang)}</span>
+                      <strong>
+                        {f.money(w.price_cents)}
+                        {w.mode === 'hourly' ? ' /h' : ''}
+                      </strong>
+                    </div>
+                    <span className="muted small">
+                      {t(w.mode === 'hourly' ? 'workTypes.mode.hourly' : 'workTypes.mode.fixed')}
+                      {w.est_minutes ? ` — ${w.est_minutes} min` : ''}
+                    </span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))}
       <Sheet open={Boolean(edit)} onClose={() => setEdit(null)} title={edit?.id ? t('common.edit') : t('common.add')}>
         {edit && (
           <>
-            <Input label={t('common.name')} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+            <Input label={t('workTypes.nameFr')} value={edit.names.fr} onChange={(e) => setEdit({ ...edit, names: { ...edit.names, fr: e.target.value } })} />
+            <Input label={t('workTypes.nameEn')} value={edit.names.en} onChange={(e) => setEdit({ ...edit, names: { ...edit.names, en: e.target.value } })} />
+            <Input label={t('workTypes.nameEs')} value={edit.names.es} onChange={(e) => setEdit({ ...edit, names: { ...edit.names, es: e.target.value } })} />
+            <p className="muted small">{t('workTypes.namesHelp')}</p>
+            <Select label={t('workTypes.category')} value={edit.category ?? 'other'} onChange={(e) => setEdit({ ...edit, category: e.target.value })}>
+              {WORK_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {t(`workTypes.cat.${c}` as Key)}
+                </option>
+              ))}
+            </Select>
             <Seg
               label={t('workTypes.title')}
               value={edit.mode}
@@ -71,7 +117,7 @@ export function WorkTypes() {
               <Input label={t('workTypes.minutes')} type="number" min={1} value={edit.est_minutes ?? ''} onChange={(e) => setEdit({ ...edit, est_minutes: e.target.value })} />
             </div>
             <Check label={t('workTypes.active')} checked={edit.active} onChange={(active) => setEdit({ ...edit, active })} />
-            <button className="btn primary" disabled={busy || !edit.name || edit.price_cents === null} onClick={save}>
+            <button className="btn primary" disabled={busy || !hasName || edit.price_cents === null} onClick={save}>
               {t('common.save')}
             </button>
           </>

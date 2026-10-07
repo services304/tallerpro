@@ -17,25 +17,58 @@ export const SignaturePad = forwardRef<SignatureHandle, { onChange?: (empty: boo
   const changed = useRef(onChange);
   changed.current = onChange;
 
-  const setup = useCallback(() => {
-    const c = canvas.current!;
-    const r = c.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    c.width = Math.round(r.width * dpr);
-    c.height = Math.round(r.height * dpr);
+  const style = (c: HTMLCanvasElement, dpr: number) => {
     const ctx = c.getContext('2d')!;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineWidth = 2.4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#10201e';
-    empty.current = true;
-    changed.current?.(true);
+  };
+
+  /** Ajusta el lienzo a su tamaño en pantalla. Si ya hay firma, la conserva. */
+  const fit = useCallback(() => {
+    const c = canvas.current;
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    if (!r.width || !r.height) return; // todavía oculto (p. ej. dentro de una ventana que se está abriendo)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(r.width * dpr);
+    const h = Math.round(r.height * dpr);
+    if (c.width === w && c.height === h) return;
+    let old: HTMLCanvasElement | null = null;
+    if (!empty.current && c.width && c.height) {
+      old = document.createElement('canvas');
+      old.width = c.width;
+      old.height = c.height;
+      old.getContext('2d')!.drawImage(c, 0, 0);
+    }
+    c.width = w;
+    c.height = h;
+    if (old) c.getContext('2d')!.drawImage(old, 0, 0, w, h);
+    style(c, dpr);
   }, []);
+
+  const setup = useCallback(() => {
+    const c = canvas.current!;
+    empty.current = true;
+    c.width = 0; // fuerza a fit() a reiniciar el lienzo
+    fit();
+    changed.current?.(true);
+  }, [fit]);
 
   useEffect(() => {
     setup();
-  }, [setup]);
+    const c = canvas.current!;
+    // Dentro de una ventana (Sheet) el lienzo mide 0 al montarse: se ajusta cuando aparece o cambia de tamaño.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => fit()) : null;
+    ro?.observe(c);
+    window.addEventListener('resize', fit);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, [setup, fit]);
 
   useImperativeHandle(ref, () => ({
     toDataUrl: () => (empty.current ? null : canvas.current!.toDataURL('image/png')),
@@ -54,7 +87,9 @@ export const SignaturePad = forwardRef<SignatureHandle, { onChange?: (empty: boo
       role="img"
       aria-label="signature"
       onPointerDown={(e) => {
-        canvas.current!.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        fit();
+        canvas.current!.setPointerCapture?.(e.pointerId);
         drawing.current = true;
         last.current = pos(e);
       }}
