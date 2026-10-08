@@ -51,14 +51,13 @@ export function Clients() {
 }
 
 /** Crear o borrar los clientes de ejemplo (solo el dueño). */
-function SamplesPanel({ count, total, reload }: { count: number; total: number; reload: () => void }) {
+function SamplesPanel({ count, reload }: { count: number; total?: number; reload: () => void }) {
   const { t } = useI18n();
   const { user } = useSession();
   const toast = useToast();
   const { run, busy } = useAction();
   const [sure, setSure] = useState(false);
   if (user?.role !== 'admin') return null;
-  if (count === 0 && total > 0) return null;
   return (
     <div className="panel pad stack">
       {count === 0 ? (

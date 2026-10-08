@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config.js';
 import { type Db, one, pool, q, tx } from '../db.js';
-import { defaultTemplates, fill, type Lang, type NotificationEvent } from './i18n.js';
+import { defaultTemplates, fill, reviewInvite, type Lang, type NotificationEvent } from './i18n.js';
 import { randomToken, sha256 } from './security.js';
 import { nextAllowedTime } from './time.js';
 
@@ -61,13 +61,15 @@ export async function enqueue(opts: EnqueueOpts, db: Db = pool): Promise<number>
   );
   if (optOut && !optOut.granted && opts.event !== 'portal_code') return 0;
 
-  const s = await one<{ shop_name: string; quiet_start_hour: number; quiet_end_hour: number; messaging_mode: 'auto' | 'manual' }>(
-    'SELECT shop_name, quiet_start_hour, quiet_end_hour, messaging_mode FROM settings WHERE id=1',
+  const s = await one<{ shop_name: string; quiet_start_hour: number; quiet_end_hour: number; messaging_mode: 'auto' | 'manual'; google_review_url: string }>(
+    'SELECT shop_name, quiet_start_hour, quiet_end_hour, messaging_mode, google_review_url FROM settings WHERE id=1',
     [],
     db,
   );
   const vars: Record<string, string | number | undefined> = { name: c.name.split(' ')[0], shop: s!.shop_name, ...opts.vars };
   if (opts.withLink) vars.link = await portalLink(c.id, opts.orderId ?? null, db);
+  // Al entregar: invitación a dejar una reseña en Google (solo si el taller puso su enlace).
+  vars.review = opts.event === 'delivered' && s!.google_review_url ? fill(reviewInvite[c.lang], { url: s!.google_review_url, shop: s!.shop_name }) : '';
 
   const when = URGENT.includes(opts.event) ? new Date() : nextAllowedTime(new Date(), s!.quiet_start_hour, s!.quiet_end_hour);
   const manual = s!.messaging_mode === 'manual';

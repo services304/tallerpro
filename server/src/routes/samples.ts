@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { one, q, tx } from '../db.js';
 import { audit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
-import { normalizePhone } from '../lib/phone.js';
-import { SAMPLE_CLIENTS, STARTER_INVENTORY } from '../lib/sampleData.js';
+import { STARTER_INVENTORY } from '../lib/sampleData.js';
+import { addStarterInventory, createSampleClients } from '../services/samples.js';
 import { requireUser } from '../app.js';
 import { moveStock } from '../services/inventory.js';
 
@@ -19,25 +19,8 @@ export async function sampleRoutes(app: FastifyInstance) {
   /** Crea los 8 clientes de ejemplo con su vehículo (una sola vez). */
   app.post('/samples/clients', { preHandler: requireUser('admin') }, async (req) => {
     const created = await tx(async (c) => {
-      const has = await one<{ n: number }>('SELECT count(*)::int AS n FROM clients WHERE is_sample', [], c);
-      if (has!.n > 0) throw new AppError(409, 'samples.exist');
-      let n = 0;
-      for (const s of SAMPLE_CLIENTS) {
-        const cl = await one<{ id: string }>(
-          `INSERT INTO clients (name, phone, email, address, lang, channels, notes_internal, is_sample) VALUES ($1,$2,$3,$4,$5,$6,$7,true) RETURNING id`,
-          [s.name, normalizePhone(s.phone), s.email, s.address, s.lang, s.channels, s.notes],
-          c,
-        );
-        await q(`INSERT INTO consents (client_id, kind, granted, source) VALUES ($1,'maintenance',true,'staff'), ($1,'promo',false,'staff')`, [cl!.id], c);
-        const v = s.vehicle;
-        const ve = await one<{ id: string }>(
-          `INSERT INTO vehicles (vin, plate, make, model, year, engine, color, last_odometer, is_sample) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true) RETURNING id`,
-          [v.vin, v.plate, v.make, v.model, v.year, v.engine, v.color, v.odometer],
-          c,
-        );
-        await q('INSERT INTO vehicle_owners (vehicle_id, client_id) VALUES ($1,$2)', [ve!.id, cl!.id], c);
-        n++;
-      }
+      const n = await createSampleClients(c);
+      if (!n) throw new AppError(409, 'samples.exist');
       return n;
     });
     await audit(req, 'samples.create', 'client', null, null, { count: created });
@@ -74,22 +57,7 @@ export async function sampleRoutes(app: FastifyInstance) {
 
   /** Agrega el inventario básico sugerido (lo que falte; no toca lo que el dueño ya cambió). */
   app.post('/inventory/starter', { preHandler: requireUser('admin') }, async (req) => {
-    const added = await tx(async (c) => {
-      let n = 0;
-      for (const s of STARTER_INVENTORY) {
-        const it = await one<{ id: string }>(
-          `INSERT INTO inventory_items (name, part_number, category, unit, location, min_quantity, cost_cents, price_cents, notes, starter_key)
-           VALUES ($1,$2,$3,$4,'van',$5,$6,$7,$8,$9)
-           ON CONFLICT (starter_key) WHERE starter_key IS NOT NULL DO NOTHING RETURNING id`,
-          [s.name, s.part_number ?? '', s.category, s.unit, s.min, Math.round(s.cost * 100), Math.round(s.price * 100), s.notes, s.key],
-          c,
-        );
-        if (!it) continue;
-        if (s.qty > 0) await moveStock(c, it.id, s.qty, 'initial', { unitCostCents: Math.round(s.cost * 100), userId: req.user!.id, note: 'starter' });
-        n++;
-      }
-      return n;
-    });
+    const added = await tx((c) => addStarterInventory(c, req.user!.id));
     return { added };
   });
 }

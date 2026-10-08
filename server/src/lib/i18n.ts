@@ -215,7 +215,7 @@ export const defaultTemplates: Record<Lang, Record<NotificationEvent, { subject:
     inspection_invoice: { subject: 'Facture de diagnostic — {order}', body: 'Bonjour {name}, vous avez refusé les travaux pour {vehicle}. Voici la facture de la visite et du diagnostic ({total}) : {link}' },
     waiting_parts: { subject: 'En attente de pièces — {order}', body: 'Bonjour {name}, nous attendons des pièces pour votre {vehicle}. Nous vous confirmerons la nouvelle date : {link}' },
     ready: { subject: 'Travaux terminés — {order}', body: 'Bonjour {name}, les travaux sur votre {vehicle} sont terminés. Total : {total}. Détails et paiement : {link}' },
-    delivered: { subject: 'Merci! Votre facture — {order}', body: 'Merci {name}! Votre facture et la garantie sont ici : {link}' },
+    delivered: { subject: 'Merci! Votre facture — {order}', body: 'Merci {name}! Votre facture et la garantie sont ici : {link}{review}' },
     payment_reminder: { subject: 'Rappel de paiement — {order}', body: 'Bonjour {name}, un solde de {total} reste à payer pour {order}. Détails : {link}' },
     portal_code: { subject: 'Votre code — {shop}', body: 'Votre code {shop} : {code}. Il expire dans 10 minutes.' },
   },
@@ -229,7 +229,7 @@ export const defaultTemplates: Record<Lang, Record<NotificationEvent, { subject:
     inspection_invoice: { subject: 'Diagnosis invoice — {order}', body: 'Hi {name}, you declined the work on {vehicle}. Here is the invoice for the visit and diagnosis ({total}): {link}' },
     waiting_parts: { subject: 'Waiting for parts — {order}', body: "Hi {name}, we're waiting for parts for your {vehicle}. We'll confirm the new date: {link}" },
     ready: { subject: 'Work completed — {order}', body: 'Hi {name}, the work on your {vehicle} is done. Total: {total}. Details and payment: {link}' },
-    delivered: { subject: 'Thank you! Your invoice — {order}', body: 'Thank you {name}! Your invoice and warranty are here: {link}' },
+    delivered: { subject: 'Thank you! Your invoice — {order}', body: 'Thank you {name}! Your invoice and warranty are here: {link}{review}' },
     payment_reminder: { subject: 'Payment reminder — {order}', body: 'Hi {name}, a balance of {total} is still due for {order}. Details: {link}' },
     portal_code: { subject: 'Your code — {shop}', body: 'Your {shop} code: {code}. It expires in 10 minutes.' },
   },
@@ -243,10 +243,29 @@ export const defaultTemplates: Record<Lang, Record<NotificationEvent, { subject:
     inspection_invoice: { subject: 'Factura de diagnóstico — {order}', body: 'Hola {name}, rechazaste los trabajos del {vehicle}. Esta es la factura de la visita y el diagnóstico ({total}): {link}' },
     waiting_parts: { subject: 'Esperando piezas — {order}', body: 'Hola {name}, estamos esperando piezas para tu {vehicle}. Te confirmamos la nueva fecha: {link}' },
     ready: { subject: 'Trabajo terminado — {order}', body: 'Hola {name}, terminamos el trabajo en tu {vehicle}. Total: {total}. Detalles y pago: {link}' },
-    delivered: { subject: '¡Gracias! Tu factura — {order}', body: '¡Gracias {name}! Tu factura y la garantía están aquí: {link}' },
+    delivered: { subject: '¡Gracias! Tu factura — {order}', body: '¡Gracias {name}! Tu factura y la garantía están aquí: {link}{review}' },
     payment_reminder: { subject: 'Recordatorio de pago — {order}', body: 'Hola {name}, queda un saldo de {total} por pagar de la orden {order}. Detalles: {link}' },
     portal_code: { subject: 'Tu código — {shop}', body: 'Tu código de {shop}: {code}. Vence en 10 minutos.' },
   },
+};
+
+/**
+ * Invitación a dejar una reseña en Google (va al final del mensaje de entrega, a todos los clientes por igual).
+ * Da ideas para que el cliente cuente SU experiencia con sus palabras; no se le escribe la reseña.
+ */
+export const reviewInvite: Record<Lang, string> = {
+  fr:
+    "\n\nVotre avis compte beaucoup! Un commentaire sur Google aide d'autres gens à trouver un mécanicien de confiance. Ça prend 1 minute : {url}\n" +
+    "Racontez avec vos mots ce qu'on a réparé, où on vous a servi et ce que vous avez aimé. Par exemple : « Mécanicien à domicile à [votre ville]. Il a remplacé [le travail] dans mon entrée, il était à l'heure et m'a tout expliqué avec des photos. »\n" +
+    "Et si quelque chose ne va pas, répondez à ce message : on s'en occupe. Merci! — {shop}",
+  en:
+    "\n\nYour opinion means a lot! A Google review helps other people find a mechanic they can trust. It takes 1 minute: {url}\n" +
+    'Tell it in your own words: what we fixed, where we served you and what you liked. For example: "Mobile mechanic in [your city]. He replaced [the job] in my driveway, was on time and explained everything with photos."\n' +
+    "And if anything isn't right, just reply to this message and we'll take care of it. Thank you! — {shop}",
+  es:
+    '\n\n¡Tu opinión vale mucho! Una reseña en Google ayuda a que más personas encuentren un mecánico de confianza. Toma 1 minuto: {url}\n' +
+    'Cuenta con tus palabras qué te arreglamos, dónde te atendimos y qué te gustó. Por ejemplo: «Mecánico a domicilio en [tu ciudad]. Me cambió [el trabajo] en la entrada de mi casa, llegó a tiempo y me explicó todo con fotos.»\n' +
+    'Y si algo no quedó bien, responde este mensaje y lo arreglamos. ¡Gracias! — {shop}',
 };
 
 export function fill(template: string, vars: Record<string, string | number | undefined>): string {

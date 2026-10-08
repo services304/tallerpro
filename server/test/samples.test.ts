@@ -75,3 +75,44 @@ describe('inventario básico', () => {
     expect((await owner.get('/api/inventory/summary')).json.low).toBe(0);
   });
 });
+
+describe('carga automática en la instalación de prueba', () => {
+  it('agrega clientes de ejemplo e inventario una sola vez, aunque ya haya clientes reales', async () => {
+    const { runStartupSeeds } = await import('../src/services/samples.js');
+    await owner.post('/api/clients', { name: 'Carrito Test', phone: '514 555 0177' });
+    expect(await runStartupSeeds()).toEqual({ clients: 8, items: STARTER_INVENTORY.length });
+    expect(await runStartupSeeds()).toBeNull();
+    // Si el dueño borra los ejemplos, no vuelven a aparecer al reiniciar.
+    await owner.req('DELETE', '/api/samples/clients');
+    expect(await runStartupSeeds()).toBeNull();
+    expect((await owner.get('/api/samples/status')).json).toMatchObject({ clients: 0, starter: STARTER_INVENTORY.length });
+  });
+});
+
+describe('reseña en Google al entregar', () => {
+  it('el mensaje de entrega invita a dejar una reseña solo si hay enlace, en el idioma del cliente', async () => {
+    const { enqueue } = await import('../src/lib/notify.js');
+    const { pool } = await import('../src/db.js');
+    const es = (await owner.post('/api/clients', { name: 'Carlos Ramírez', phone: '514 555 0166', lang: 'es', channels: ['sms'] })).json.id;
+    await enqueue({ event: 'delivered', clientId: es, withLink: true });
+    let body = (await pool.query(`SELECT body FROM notifications WHERE client_id=$1 ORDER BY created_at DESC LIMIT 1`, [es])).rows[0].body;
+    expect(body).not.toContain('Google');
+
+    expect((await owner.req('PATCH', '/api/settings', { google_review_url: 'http://no-https.test' })).status).toBe(400);
+    expect((await owner.req('PATCH', '/api/settings', { google_review_url: 'https://g.page/r/ELCABO/review' })).status).toBe(200);
+    await enqueue({ event: 'delivered', clientId: es, withLink: true });
+    body = (await pool.query(`SELECT body FROM notifications WHERE client_id=$1 ORDER BY created_at DESC LIMIT 1`, [es])).rows[0].body;
+    expect(body).toContain('https://g.page/r/ELCABO/review');
+    expect(body).toContain('Mecánico a domicilio en [tu ciudad]');
+    expect(body).toContain('con tus palabras');
+
+    const fr = (await owner.post('/api/clients', { name: 'Jean Tremblay', phone: '514 555 0155', lang: 'fr' })).json.id;
+    await enqueue({ event: 'delivered', clientId: fr, withLink: true });
+    const frBody = (await pool.query(`SELECT body FROM notifications WHERE client_id=$1 ORDER BY created_at DESC LIMIT 1`, [fr])).rows[0].body;
+    expect(frBody).toContain('Mécanicien à domicile à [votre ville]');
+    // Otros mensajes no llevan la invitación
+    await enqueue({ event: 'ready', clientId: fr, withLink: true, vars: { total: '10 $' } });
+    const ready = (await pool.query(`SELECT body FROM notifications WHERE client_id=$1 ORDER BY created_at DESC LIMIT 1`, [fr])).rows[0].body;
+    expect(ready).not.toContain('Google');
+  });
+});

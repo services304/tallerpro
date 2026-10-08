@@ -34,6 +34,7 @@ export async function catalogRoutes(app: FastifyInstance) {
         quiet_start_hour: z.number().int().min(0).max(23),
         quiet_end_hour: z.number().int().min(0).max(23),
         messaging_mode: z.enum(['auto', 'manual']),
+        google_review_url: z.union([z.literal(''), z.string().trim().url().max(500).refine((u) => /^https:\/\//.test(u), 'https')]),
         warranty_text: z.object({ fr: z.string().max(1000), en: z.string().max(1000), es: z.string().max(1000) }),
       }).partial(),
       req.body,

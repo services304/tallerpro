@@ -36,6 +36,7 @@ export function Settings() {
       quiet_end_hour: Number(s.quiet_end_hour),
       warranty_text: s.warranty_text,
       messaging_mode: s.messaging_mode,
+      google_review_url: (s.google_review_url ?? '').trim(),
     };
     if (await run(() => patch('/settings', body), t('common.saved'))) {
       void refresh();
@@ -89,6 +90,12 @@ export function Settings() {
             </label>
           ))}
         </div>
+      </section>
+      <section className="section">
+        <h2>{t('settings.reviews')}</h2>
+        <p className="muted small">{t('settings.reviewsHelp')}</p>
+        <Input label={t('settings.reviewUrl')} type="url" inputMode="url" placeholder="https://g.page/r/…" value={s.google_review_url ?? ''} onChange={set('google_review_url')} />
+        <p className="muted small">{t('settings.reviewHow')}</p>
       </section>
       <section className="section">
         <h2>{t('settings.messages')}</h2>
