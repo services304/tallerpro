@@ -2,7 +2,7 @@
  * Service worker: permite abrir la app sin señal (la casa del cliente puede no tener cobertura).
  * Siempre intenta primero la red (versión más nueva) y usa la copia guardada solo si no hay conexión.
  */
-const CACHE = 'tallerpro-shell-v5';
+const CACHE = 'tallerpro-shell-v6';
 const SHELL = ['/', '/boot.js', '/manifest.webmanifest', '/favicon.png', '/logo-96.webp', '/logo-384.webp'];
 
 self.addEventListener('install', (e) => {

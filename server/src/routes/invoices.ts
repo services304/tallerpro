@@ -7,7 +7,7 @@ import { AppError, notFound } from '../lib/errors.js';
 import type { Lang } from '../lib/i18n.js';
 import { formatMoney } from '../lib/money.js';
 import { invoicePdf } from '../lib/pdf.js';
-import { createInvoice, maybeClose } from '../services/orders.js';
+import { createInvoice, maybeClose, syncInvoice } from '../services/orders.js';
 
 const uuid = z.string().uuid();
 
@@ -42,6 +42,14 @@ export async function invoiceRoutes(app: FastifyInstance) {
   app.post('/orders/:id/invoice', async (req) => {
     const { id } = parse(z.object({ id: uuid }), req.params);
     return tx((c) => createInvoice(c, id, 'repair', req.user!.id));
+  });
+
+  /** Pone la factura de la orden al día con todo lo aprobado. */
+  app.post('/orders/:id/invoice/sync', async (req) => {
+    const { id } = parse(z.object({ id: uuid }), req.params);
+    const r = await tx((c) => syncInvoice(c, id));
+    if (!r) throw notFound();
+    return r;
   });
 
   app.get('/invoices', async (req) => {

@@ -24,6 +24,7 @@ export function InvoiceTab({ d, reload }: { d: any; reload: () => void }) {
         <div className="panel pad">
           <p className="muted">{t('invoice.none')}</p>
           <Totals totals={d.totals.approved} label={t('order.approvedTotal')} />
+          {canCreate && d.totals.pending.subtotal_cents > 0 && <p className="notice small">{t('invoice.pendingWarning', { p: f.money(d.totals.pending.total_cents) })}</p>}
           {canCreate && (
             <button
               className="btn primary"
@@ -54,6 +55,21 @@ export function InvoiceTab({ d, reload }: { d: any; reload: () => void }) {
               {t(`invoice.kind.${inv.kind}` as Key)} — {f.date(inv.issued_at)}
             </p>
             <Totals totals={inv} />
+            {inv.status !== 'void' && inv === active[0] && inv.subtotal_cents !== d.totals.approved.subtotal_cents && d.totals.approved.subtotal_cents > 0 && (
+              <div className="notice stack">
+                <span>{t('invoice.outdated', { p: f.money(d.totals.approved.total_cents) })}</span>
+                <button
+                  className="btn primary"
+                  disabled={busy}
+                  onClick={async () => {
+                    const r = await run(() => post(`/orders/${d.order.id}/invoice/sync`), t('invoice.updated'));
+                    if (r) reload();
+                  }}
+                >
+                  {t('invoice.update')}
+                </button>
+              </div>
+            )}
             {payments.length > 0 && (
               <ul className="list">
                 {payments.map((p: any) => (

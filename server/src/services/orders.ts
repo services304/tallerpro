@@ -92,6 +92,60 @@ export function moneyFor(lang: Lang, cents: number) {
  * Crea una factura con las líneas aprobadas de la orden.
  * kind='inspection' es la factura de revisión cuando el cliente rechaza la cotización.
  */
+type BillLine = { kind: string; description: string; quantity: number; unit_price_cents: number; part_condition: string | null };
+
+function approvedLines(db: pg.PoolClient, orderId: string) {
+  return q<BillLine & { position: number }>(
+    `SELECT kind, description, quantity, unit_price_cents, part_condition, position FROM order_lines
+      WHERE order_id=$1 AND approval='approved' ORDER BY position, created_at`,
+    [orderId],
+    db,
+  );
+}
+
+async function fillInvoiceLines(db: pg.PoolClient, invoiceId: string, lines: BillLine[]) {
+  await q('DELETE FROM invoice_lines WHERE invoice_id=$1', [invoiceId], db);
+  let pos = 0;
+  for (const l of lines) {
+    const total = Math.round(l.quantity * l.unit_price_cents) * (l.kind === 'discount' ? -1 : 1);
+    await q(
+      `INSERT INTO invoice_lines (invoice_id, kind, description, quantity, unit_price_cents, total_cents, part_condition, position)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [invoiceId, l.kind, l.description, l.quantity, l.unit_price_cents, total, l.part_condition, pos++],
+      db,
+    );
+  }
+}
+
+/**
+ * Pone al día la factura activa de la orden con todo lo aprobado (repuestos, mano de obra, cargos).
+ * Conserva el número y los pagos; recalcula impuestos, total y estado. Devuelve null si no hay factura.
+ */
+export async function syncInvoice(db: pg.PoolClient, orderId: string) {
+  const inv = await one<{ id: string; number: number; kind: string; paid_cents: number; total_cents: number; lang: Lang }>(
+    `SELECT id, number, kind, paid_cents, total_cents, lang FROM invoices WHERE order_id=$1 AND status <> 'void' ORDER BY number DESC LIMIT 1 FOR UPDATE`,
+    [orderId],
+    db,
+  );
+  if (!inv) return null;
+  const lines = await approvedLines(db, orderId);
+  if (!lines.length) return { id: inv.id, number: inv.number, changed: false, total_cents: inv.total_cents };
+  const s = await getSettings(db);
+  const t = computeTotals(lines, s.taxes_registered);
+  // Si ya hay trabajo aprobado además del cargo de visita, deja de ser solo una «revisión».
+  const kind = lines.some((l) => l.kind === 'part' || l.kind === 'labor') ? 'repair' : inv.kind;
+  const status = inv.paid_cents <= 0 ? 'issued' : inv.paid_cents >= t.total_cents ? 'paid' : 'partial';
+  await q(
+    `UPDATE invoices SET kind=$2, subtotal_cents=$3, gst_cents=$4, qst_cents=$5, total_cents=$6, status=$7,
+            warranty_text=CASE WHEN $2='repair' AND warranty_text='' THEN $8 ELSE warranty_text END
+      WHERE id=$1`,
+    [inv.id, kind, t.subtotal_cents, t.gst_cents, t.qst_cents, t.total_cents, status, s.warranty_text[inv.lang] ?? s.warranty_text.fr ?? ''],
+    db,
+  );
+  await fillInvoiceLines(db, inv.id, lines);
+  return { id: inv.id, number: inv.number, changed: t.total_cents !== inv.total_cents, total_cents: t.total_cents };
+}
+
 export async function createInvoice(db: pg.PoolClient, orderId: string, kind: 'repair' | 'inspection', userId: string | null) {
   const existing = await one<{ number: number }>(
     `SELECT number FROM invoices WHERE order_id=$1 AND status <> 'void'`,
@@ -102,12 +156,7 @@ export async function createInvoice(db: pg.PoolClient, orderId: string, kind: 'r
   const o = await one<{ client_id: string; lang: Lang }>('SELECT o.client_id, c.lang FROM orders o JOIN clients c ON c.id=o.client_id WHERE o.id=$1', [orderId], db);
   if (!o) throw notFound();
   const s = await getSettings(db);
-  const lines = await q<{ kind: string; description: string; quantity: number; unit_price_cents: number; part_condition: string | null; position: number }>(
-    `SELECT kind, description, quantity, unit_price_cents, part_condition, position FROM order_lines
-      WHERE order_id=$1 AND approval='approved' ORDER BY position, created_at`,
-    [orderId],
-    db,
-  );
+  const lines = await approvedLines(db, orderId);
   if (!lines.length) throw new AppError(409, 'invoice.nothing');
   const totals = computeTotals(lines, s.taxes_registered);
   const number = await nextInvoiceNumber(db);
@@ -122,16 +171,7 @@ export async function createInvoice(db: pg.PoolClient, orderId: string, kind: 'r
     ],
     db,
   );
-  let pos = 0;
-  for (const l of lines) {
-    const total = Math.round(l.quantity * l.unit_price_cents) * (l.kind === 'discount' ? -1 : 1);
-    await q(
-      `INSERT INTO invoice_lines (invoice_id, kind, description, quantity, unit_price_cents, total_cents, part_condition, position)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [inv!.id, l.kind, l.description, l.quantity, l.unit_price_cents, total, l.part_condition, pos++],
-      db,
-    );
-  }
+  await fillInvoiceLines(db, inv!.id, lines);
   return inv!;
 }
 
@@ -184,6 +224,9 @@ export async function decideQuote(
     db,
   );
 
+  // Si ya existe una factura (p. ej. creada antes con solo el cargo de visita), se pone al día.
+  if (approvedCount > 0) await syncInvoice(db, quote.order_id);
+
   // Los repuestos aprobados pasan a «pedidos» (la oferta elegida se convierte en orden de compra).
   await q(
     `UPDATE parts_requests SET status='ordered' WHERE id IN (
@@ -210,7 +253,8 @@ export async function decideQuote(
     try {
       invoice = await createInvoice(db, quote.order_id, 'inspection', actor.kind === 'staff' ? actor.userId : null);
     } catch (e) {
-      if (!(e instanceof AppError && e.code === 'invoice.nothing')) throw e;
+      // Sin nada que cobrar, o ya existía una factura: se deja como está.
+      if (!(e instanceof AppError && (e.code === 'invoice.nothing' || e.code === 'invoice.exists'))) throw e;
     }
     await transition(db, quote.order_id, 'ready', { kind: 'system' });
     const ctx = await orderContext(db, quote.order_id);
