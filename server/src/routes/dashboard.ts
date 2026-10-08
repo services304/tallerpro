@@ -49,6 +49,9 @@ export async function dashboardRoutes(app: FastifyInstance) {
         : Promise.resolve(null),
     ]);
     const manual = await one<{ n: number }>(`SELECT count(*)::int AS n FROM notifications WHERE status='manual'`);
-    return { visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money };
+    const lowStock = await q<{ id: string; name: string; quantity: number; min_quantity: number; unit: string }>(
+      `SELECT id, name, quantity, min_quantity, unit FROM inventory_items WHERE active AND quantity <= min_quantity ORDER BY quantity - min_quantity, lower(name) LIMIT 20`,
+    );
+    return { visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money, lowStock };
   });
 }

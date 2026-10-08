@@ -5,6 +5,7 @@ import { docLabels, statusLabels, type Lang, type NotificationEvent } from '../l
 import { computeTotals, formatMoney } from '../lib/money.js';
 import { enqueue } from '../lib/notify.js';
 import { canTransition, type OrderStatus } from '../lib/orderStates.js';
+import { returnStockForOrder, takeStockForOrder } from './inventory.js';
 
 export type Actor = { kind: 'staff'; userId: string } | { kind: 'client' } | { kind: 'system' };
 
@@ -47,6 +48,8 @@ export async function transition(db: Db, orderId: string, to: OrderStatus, actor
     [orderId, o.status, to, actor.kind === 'staff' ? actor.userId : null, actor.kind, note],
     db,
   );
+  // Orden cancelada: las piezas que se habían sacado del inventario vuelven a él.
+  if (to === 'cancelled') await returnStockForOrder(db, orderId, actor.kind === 'staff' ? actor.userId : null, 'cancelled');
   return o.status;
 }
 
@@ -226,6 +229,8 @@ export async function decideQuote(
 
   // Si ya existe una factura (p. ej. creada antes con solo el cargo de visita), se pone al día.
   if (approvedCount > 0) await syncInvoice(db, quote.order_id);
+  // Las piezas del inventario aprobadas salen de la existencia.
+  if (approvedCount > 0) await takeStockForOrder(db, quote.order_id, actor.kind === 'staff' ? actor.userId : null);
 
   // Los repuestos aprobados pasan a «pedidos» (la oferta elegida se convierte en orden de compra).
   await q(

@@ -10,6 +10,7 @@ const ADMIN: [string, Key][] = [
   ['/more/import', 'more.import'],
 ];
 const ALL: [string, Key][] = [
+  ['/more/inventory', 'more.inventory'],
   ['/more/suppliers', 'more.suppliers'],
   ['/more/invoices', 'more.invoices'],
   ['/more/notifications', 'more.notifications'],

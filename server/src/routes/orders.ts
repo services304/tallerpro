@@ -19,6 +19,7 @@ const lineInput = z.object({
   unit_price_cents: z.number().int().min(0).max(100_000_000).optional(),
   unit_cost_cents: z.number().int().min(0).max(100_000_000).default(0),
   part_condition: z.enum(['new', 'used', 'rebuilt']).nullable().optional(),
+  inventory_item_id: uuid.nullable().optional(),
 });
 
 async function assertEditable(orderId: string) {
@@ -234,6 +235,14 @@ export async function orderRoutes(app: FastifyInstance) {
     const b = parse(lineInput, req.body);
     await assertEditable(id);
     let price = b.unit_price_cents;
+    let cost = b.unit_cost_cents;
+    if (b.inventory_item_id) {
+      // Pieza del inventario: precio y costo del artículo (el precio se puede cambiar).
+      const it = await one<{ price_cents: number; cost_cents: number }>('SELECT price_cents, cost_cents FROM inventory_items WHERE id=$1', [b.inventory_item_id]);
+      if (!it) throw new AppError(400, 'validation.failed', { fields: 'inventory_item_id' });
+      price ??= it.price_cents;
+      if (!cost) cost = it.cost_cents;
+    }
     if (price === undefined && b.work_type_id) {
       const wt = await one<{ price_cents: number }>('SELECT price_cents FROM work_types WHERE id=$1', [b.work_type_id]);
       if (!wt) throw new AppError(400, 'validation.failed', { fields: 'work_type_id' });
@@ -246,9 +255,10 @@ export async function orderRoutes(app: FastifyInstance) {
     }
     const pos = await one<{ p: number }>('SELECT COALESCE(max(position),0)+1 AS p FROM order_lines WHERE order_id=$1', [id]);
     return one(
-      `INSERT INTO order_lines (order_id, kind, description, work_type_id, quantity, unit_price_cents, unit_cost_cents, part_condition, position)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [id, b.kind, b.description, b.work_type_id ?? null, b.quantity, price, b.unit_cost_cents, b.kind === 'part' ? b.part_condition ?? 'new' : null, pos!.p],
+      `INSERT INTO order_lines (order_id, kind, description, work_type_id, quantity, unit_price_cents, unit_cost_cents, part_condition, position, inventory_item_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [id, b.kind, b.description, b.work_type_id ?? null, b.quantity, price, cost, b.kind === 'part' ? b.part_condition ?? 'new' : null, pos!.p,
+        b.kind === 'part' ? b.inventory_item_id ?? null : null],
     );
   });
 

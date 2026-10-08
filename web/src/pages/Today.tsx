@@ -120,6 +120,32 @@ export function Today() {
         </div>
       )}
 
+      {d.lowStock?.length > 0 && (
+        <section className="section">
+          <div className="row between">
+            <h2>{t('inv.lowStock')}</h2>
+            <Link className="btn small" to="/more/inventory">
+              {t('inv.title')}
+            </Link>
+          </div>
+          <ul className="list">
+            {d.lowStock.slice(0, 5).map((i: any) => (
+              <li key={i.id}>
+                <Link className="item" to="/more/inventory">
+                  <div className="item-top">
+                    <span>{i.name}</span>
+                    <strong className="warn-text">
+                      {f.number(i.quantity)} {t(`inv.unitShort.${i.unit}` as Key)}
+                    </strong>
+                  </div>
+                  <span className="muted small">{t('inv.belowMin', { n: `${f.number(i.min_quantity)} ${t(`inv.unitShort.${i.unit}` as Key)}` })}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {d.failedNotifications > 0 && (
         <p className="error">
           {t('today.failed', { n: d.failedNotifications })} <Link to="/more/notifications">{t('today.seeNotifications')}</Link>

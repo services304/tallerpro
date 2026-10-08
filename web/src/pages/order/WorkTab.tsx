@@ -70,7 +70,9 @@ type LineKind = 'labor' | 'part' | 'fee' | 'discount';
 
 function AddLine({ d, kind, onDone }: { d: any; kind: LineKind; onDone: () => void }) {
   const { t, f, lang } = useI18n();
-  const types = useLoad<any[]>('/work-types');
+  const types = useLoad<any[]>(kind === 'labor' ? '/work-types' : null);
+  const stock = useLoad<any[]>(kind === 'part' ? '/inventory' : null);
+  const [invId, setInvId] = useState('');
   const { run, busy } = useAction();
   const [workType, setWorkType] = useState('');
   const [description, setDescription] = useState('');
@@ -79,6 +81,9 @@ function AddLine({ d, kind, onDone }: { d: any; kind: LineKind; onDone: () => vo
   const [cost, setCost] = useState<number | null>(null);
   const [condition, setCondition] = useState<'new' | 'used' | 'rebuilt'>('new');
   const wt = types.data?.find((x) => x.id === workType);
+  const inv = stock.data?.find((x) => x.id === invId);
+  const qtyNum = Number(qty.replace(',', '.')) || 0;
+  const available = inv ? inv.quantity - inv.reserved : 0;
   const active = types.data?.filter((x) => x.active) ?? [];
   const margin = d.settings.parts_margin_bp / 10000;
 
@@ -113,6 +118,36 @@ function AddLine({ d, kind, onDone }: { d: any; kind: LineKind; onDone: () => vo
             </optgroup>
           ))}
         </Select>
+      )}
+      {kind === 'part' && (stock.data?.length ?? 0) > 0 && (
+        <Select
+          label={t('inv.fromStock')}
+          value={invId}
+          onChange={(e) => {
+            const it = stock.data?.find((x) => x.id === e.target.value);
+            setInvId(e.target.value);
+            if (it) {
+              setDescription(it.part_number ? `${it.name} (${it.part_number})` : it.name);
+              setPrice(it.price_cents || null);
+              setCost(it.cost_cents || null);
+              setCondition('new');
+            }
+          }}
+        >
+          <option value="">{t('inv.notFromStock')}</option>
+          {stock.data!.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name} — {f.number(x.quantity)} {t(`inv.unitShort.${x.unit}` as Key)} — {f.money(x.price_cents)}
+            </option>
+          ))}
+        </Select>
+      )}
+      {inv && (
+        <p className={qtyNum > available ? 'notice small' : 'stock-hint'}>
+          {qtyNum > available
+            ? t('inv.notEnough', { n: `${f.number(available)} ${t(`inv.unitShort.${inv.unit}` as Key)}` })
+            : t('inv.willTake', { n: `${f.number(available)} ${t(`inv.unitShort.${inv.unit}` as Key)}` })}
+        </p>
       )}
       <Input label={t('common.description')} required value={description} onChange={(e) => setDescription(e.target.value)} />
       <div className="grid2">
@@ -151,7 +186,7 @@ function AddLine({ d, kind, onDone }: { d: any; kind: LineKind; onDone: () => vo
               work_type_id: workType || null,
               quantity: Number(qty.replace(',', '.')) || 1,
               unit_price_cents: price,
-              ...(kind === 'part' ? { unit_cost_cents: cost ?? 0, part_condition: condition } : {}),
+              ...(kind === 'part' ? { unit_cost_cents: cost ?? 0, part_condition: condition, inventory_item_id: invId || null } : {}),
             }),
           );
           if (r) onDone();
@@ -232,6 +267,7 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
                   {l.part_condition && <span className="muted small"> — {t(`order.condition.${l.part_condition}` as Key)}</span>}
                   <div>
                     <span className={`status ${tone[l.approval]}`}>{t(`order.approval.${l.approval}` as Key)}</span>
+                    {l.inventory_item_id && <span className="muted small"> {l.stock_taken ? t('inv.lineTaken') : t('inv.lineFromStock')}</span>}
                   </div>
                 </td>
                 <td className="num">{l.quantity}</td>

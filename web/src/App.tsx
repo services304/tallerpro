@@ -17,6 +17,7 @@ import { Clients, ClientDetail } from './pages/Clients';
 import { More } from './pages/More';
 import { Settings } from './pages/Settings';
 import { WorkTypes, Suppliers } from './pages/Catalog';
+import { Inventory } from './pages/Inventory';
 import { Templates } from './pages/Templates';
 import { Import } from './pages/Import';
 import { Notifications } from './pages/Notifications';
@@ -141,6 +142,7 @@ function Private() {
         <Route path="/more/settings" element={<Settings />} />
         <Route path="/more/work-types" element={<WorkTypes />} />
         <Route path="/more/suppliers" element={<Suppliers />} />
+        <Route path="/more/inventory" element={<Inventory />} />
         <Route path="/more/templates" element={<Templates />} />
         <Route path="/more/import" element={<Import />} />
         <Route path="/more/notifications" element={<Notifications />} />
