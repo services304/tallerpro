@@ -82,6 +82,7 @@ describe('carga automática en la instalación de prueba', () => {
     await owner.post('/api/clients', { name: 'Carrito Test', phone: '514 555 0177' });
     expect(await runStartupSeeds()).toEqual({ clients: 8, items: STARTER_INVENTORY.length });
     expect(await runStartupSeeds()).toBeNull();
+    expect((await owner.get('/api/settings')).json.google_review_url).toBe('https://www.google.com/search?kgmid=/g/11zkrm26jd');
     // Si el dueño borra los ejemplos, no vuelven a aparecer al reiniciar.
     await owner.req('DELETE', '/api/samples/clients');
     expect(await runStartupSeeds()).toBeNull();

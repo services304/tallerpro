@@ -46,12 +46,25 @@ export async function addStarterInventory(c: Db, userId: string | null) {
 }
 
 const SEED = 'samples-v1';
+const REVIEW_SEED = 'review-url-v1';
+/** Perfil de Google del taller (identificador /g/11zkrm26jd, sacado del enlace que dio el dueño). */
+export const SHOP_GOOGLE_PROFILE = 'https://www.google.com/search?kgmid=/g/11zkrm26jd';
 
 /**
  * Carga inicial en la instalación de prueba (DEMO_MODE): una sola vez, cuando el dueño ya creó su cuenta,
  * agrega los clientes de ejemplo y el inventario básico.
  */
 export async function runStartupSeeds() {
+  // Enlace de reseñas: se pone una sola vez y solo si el dueño no puso otro.
+  const r = await one<{ seeds_done: string[] }>('SELECT seeds_done FROM settings WHERE id=1', [], pool);
+  if (r && !r.seeds_done.includes(REVIEW_SEED)) {
+    await q(
+      `UPDATE settings SET google_review_url = CASE WHEN google_review_url='' THEN $1 ELSE google_review_url END,
+              seeds_done = array_append(seeds_done, $2) WHERE id=1`,
+      [SHOP_GOOGLE_PROFILE, REVIEW_SEED],
+      pool,
+    );
+  }
   const s = await one<{ seeds_done: string[] }>('SELECT seeds_done FROM settings WHERE id=1', [], pool);
   if (!s || s.seeds_done.includes(SEED)) return null;
   const users = await one<{ n: number }>('SELECT count(*)::int AS n FROM users', [], pool);
