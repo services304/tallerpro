@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { post } from '../api';
+import { del, post } from '../api';
 import { ClientForm, emptyVehicle, VehicleFields, vehicleBody } from '../components/forms';
 import { IconMap, IconPhone } from '../components/icons';
-import { Check, Empty, LoadError, Loading, mapsUrl, OrderStatus, Sheet, Status, Tag, telUrl, useAction, useLoad, vehicleName } from '../components/ui';
+import { Check, Empty, LoadError, Loading, mapsUrl, OrderStatus, Sheet, Status, Tag, telUrl, useAction, useLoad, useToast, vehicleName } from '../components/ui';
 import { useI18n, type Key } from '../i18n';
 import { useSession } from '../session';
 
@@ -31,7 +31,9 @@ export function Clients() {
             <li key={c.id}>
               <Link className="item" to={`/clients/${c.id}`}>
                 <div className="item-top">
-                  <span className="item-title">{c.name}</span>
+                  <span className="item-title">
+                    {c.name} {c.is_sample && <span className="status s-off">{t('samples.tag')}</span>}
+                  </span>
                   {c.balance_cents > 0 && <span className="status s-wait">{f.money(c.balance_cents)}</span>}
                 </div>
                 <span className="muted small">{[c.phone, c.email].filter(Boolean).join(' — ')}</span>
@@ -40,10 +42,63 @@ export function Clients() {
           ))}
         </ul>
       )}
+      {!q && <SamplesPanel count={data?.filter((c) => c.is_sample).length ?? 0} total={data?.length ?? 0} reload={reload} />}
       <Sheet open={creating} onClose={() => setCreating(false)} title={t('clients.new')}>
         <ClientForm onSaved={(id) => nav(`/clients/${id}`)} />
       </Sheet>
     </>
+  );
+}
+
+/** Crear o borrar los clientes de ejemplo (solo el dueño). */
+function SamplesPanel({ count, total, reload }: { count: number; total: number; reload: () => void }) {
+  const { t } = useI18n();
+  const { user } = useSession();
+  const toast = useToast();
+  const { run, busy } = useAction();
+  const [sure, setSure] = useState(false);
+  if (user?.role !== 'admin') return null;
+  if (count === 0 && total > 0) return null;
+  return (
+    <div className="panel pad stack">
+      {count === 0 ? (
+        <>
+          <p className="muted">{t('samples.help')}</p>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={async () => {
+              const r = await run(() => post<{ created: number }>('/samples/clients', {}));
+              if (r) {
+                toast(t('samples.created', { n: r.created }));
+                reload();
+              }
+            }}
+          >
+            {t('samples.create')}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="muted">{t('samples.have', { n: count })}</p>
+          <button
+            className={sure ? 'btn danger' : 'btn'}
+            disabled={busy}
+            onClick={async () => {
+              if (!sure) return setSure(true);
+              const r = await run(() => del<{ removed: number }>('/samples/clients'));
+              setSure(false);
+              if (r) {
+                toast(t('samples.removed', { n: r.removed }));
+                reload();
+              }
+            }}
+          >
+            {sure ? t('samples.confirmDelete') : t('samples.delete')}
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -68,7 +123,9 @@ export function ClientDetail() {
     <>
       <div className="page-head">
         <div>
-          <h1>{c.name}</h1>
+          <h1>
+            {c.name} {c.is_sample && <span className="status s-off">{t('samples.tag')}</span>}
+          </h1>
           <p className="muted">{[c.phone, c.email].filter(Boolean).join(' — ')}</p>
         </div>
         <div className="actions">

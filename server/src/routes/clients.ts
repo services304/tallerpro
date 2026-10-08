@@ -47,7 +47,7 @@ export async function clientRoutes(app: FastifyInstance) {
     const like = `%${term.trim().toLowerCase()}%`;
     const digits = term.replace(/\D/g, '');
     return q(
-      `SELECT c.id, c.name, c.phone, c.email, c.lang, c.channels, c.address,
+      `SELECT c.id, c.name, c.phone, c.email, c.lang, c.channels, c.address, c.is_sample,
               (SELECT count(*)::int FROM vehicle_owners vo WHERE vo.client_id=c.id AND vo.until IS NULL) AS vehicles,
               (SELECT COALESCE(sum(total_cents - paid_cents),0)::int FROM invoices i WHERE i.client_id=c.id AND i.status IN ('issued','partial')) AS balance_cents,
               (SELECT max(created_at) FROM orders o WHERE o.client_id=c.id) AS last_order_at

@@ -24,6 +24,7 @@ import { portalRoutes } from './routes/portal.js';
 import { importRoutes } from './routes/imports.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { inventoryRoutes } from './routes/inventory.js';
+import { sampleRoutes } from './routes/samples.js';
 
 export interface SessionUser {
   id: string;
@@ -175,6 +176,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(importRoutes, { prefix: '/api' });
   await app.register(dashboardRoutes, { prefix: '/api' });
   await app.register(inventoryRoutes, { prefix: '/api' });
+  await app.register(sampleRoutes, { prefix: '/api' });
 
   // La app web compilada (PWA). Cualquier ruta que no sea /api devuelve index.html.
   if (existsSync(config.webDist)) {

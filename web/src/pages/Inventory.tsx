@@ -24,6 +24,7 @@ export function Inventory() {
   const list = useLoad<any[]>(`/inventory?${filter === 'low' ? 'low=1&' : ''}all=1${search.trim() ? `&q=${encodeURIComponent(search.trim())}` : ''}`, [filter, search]);
   const summary = useLoad<any>('/inventory/summary');
   const suppliers = useLoad<any[]>('/suppliers');
+  const samples = useLoad<any>('/samples/status');
   const { run, busy } = useAction();
   const [edit, setEdit] = useState<any>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function Inventory() {
   const reloadAll = () => {
     list.reload();
     summary.reload();
+    samples.reload();
     if (openId) detail.reload();
   };
 
@@ -128,6 +130,25 @@ export function Inventory() {
         </a>
       </div>
       <Input label={t('common.search')} type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('inv.searchHint')} />
+
+      {samples.data && samples.data.starter < samples.data.starterTotal && filter === 'all' && !search && (
+        <div className="panel pad stack">
+          <p className="muted">{samples.data.starter === 0 ? t('inv.starterHelp', { n: samples.data.starterTotal }) : t('inv.starterMissing', { n: samples.data.starterTotal - samples.data.starter })}</p>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={async () => {
+              const r = await run(() => post<{ added: number }>('/inventory/starter', {}));
+              if (r) {
+                toast(t('inv.starterAdded', { n: r.added }));
+                reloadAll();
+              }
+            }}
+          >
+            {t('inv.starterLoad')}
+          </button>
+        </div>
+      )}
 
       {list.loading && !list.data && <Loading />}
       {list.error && <LoadError error={list.error} retry={list.reload} />}
