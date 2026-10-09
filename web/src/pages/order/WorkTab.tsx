@@ -363,7 +363,7 @@ function Parts({ d, reload }: { d: any; reload: () => void }) {
   const partTone: Record<string, string> = { pending: 's-off', quoted: 's-wait', chosen: 's-ok', ordered: 's-info', received: 's-ok' };
 
   return (
-    <section className="section">
+    <section className="section" id="parts">
       <div className="row between">
         <h2>{t('order.parts')}</h2>
         {canEdit && (

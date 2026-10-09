@@ -432,3 +432,5 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .progress li.done::before { background: var(--ok); }
 .progress li.now::before { background: var(--accent); }
 .progress li.now { color: var(--ink); font-weight: 700; }
+.next-step { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border-left: 4px solid var(--accent); scroll-margin-top: 80px; }
+#parts { scroll-margin-top: 80px; }

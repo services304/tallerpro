@@ -15,6 +15,20 @@ import { HistoryTab } from './order/HistoryTab';
 type TabKey = 'work' | 'photos' | 'quote' | 'invoice' | 'history';
 
 /** Pestaña que tiene más sentido según el estado de la orden. */
+/** Después de cambiar de estado: a qué pestaña ir y qué hacer ahora. */
+const NEXT: Record<string, { tab: TabKey; hint: string; anchor?: string }> = {
+  diagnosis: { tab: 'work', hint: 'next.diagnosis' },
+  parts_quote: { tab: 'work', hint: 'next.parts_quote', anchor: 'parts' },
+  waiting_parts: { tab: 'work', hint: 'next.waiting_parts', anchor: 'parts' },
+  in_repair: { tab: 'work', hint: 'next.in_repair' },
+  quality_check: { tab: 'photos', hint: 'next.quality_check' },
+  ready: { tab: 'invoice', hint: 'next.ready' },
+  delivered: { tab: 'invoice', hint: 'next.delivered' },
+  cancelled: { tab: 'history', hint: 'next.cancelled' },
+};
+/** Pasos que se hacen con un solo toque (sin ventana de confirmación). */
+const ONE_TAP = ['diagnosis', 'parts_quote', 'in_repair', 'quality_check'];
+
 function defaultTab(status: string): TabKey {
   if (['quote_sent'].includes(status)) return 'quote';
   if (['ready', 'delivered', 'rejected'].includes(status)) return 'invoice';
@@ -29,6 +43,7 @@ export function OrderDetail() {
   const [move, setMove] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
   const [note, setNote] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
   const { run, busy } = useAction();
 
   useEffect(() => onUploaded((orderId) => orderId === id && void reload()), [id, reload]);
@@ -40,16 +55,30 @@ export function OrderDetail() {
   const current = tab ?? defaultTab(o.status);
   const notifies = ['waiting_parts', 'ready', 'delivered'].includes(move ?? '');
 
-  async function doMove() {
-    const r = await run(() => post(`/orders/${id}/status`, { to: move, notify, note }), t('common.saved'));
+  async function doMove(to = move) {
+    if (!to) return;
+    const r = await run(() => post(`/orders/${id}/status`, { to, notify, note }), t('common.saved'));
     if (r) {
       setMove(null);
       setNote('');
+      // Lleva directo al siguiente proceso.
+      const next = NEXT[to];
+      if (next) {
+        setTab(next.tab);
+        setHint(next.hint);
+        setTimeout(() => {
+          const el = (next.anchor && document.getElementById(next.anchor)) || document.getElementById('order-next');
+          el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 350);
+      }
       void reload();
     }
   }
 
   const tabs: TabKey[] = ['work', 'photos', 'quote', 'invoice', 'history'];
+  // El paso hacia adelante va primero y destacado; volver atrás y cancelar quedan después.
+  const RANK = ['received', 'diagnosis', 'parts_quote', 'quote_sent', 'approved', 'waiting_parts', 'in_repair', 'quality_check', 'ready', 'delivered', 'closed'];
+  const forward = [...d.allowed].sort((a: string, b: string) => (a === 'cancelled' ? 1 : b === 'cancelled' ? -1 : RANK.indexOf(b) - RANK.indexOf(a)));
 
   return (
     <>
@@ -85,8 +114,8 @@ export function OrderDetail() {
         </div>
         {d.allowed.length > 0 && (
           <div className="row">
-            {d.allowed.map((s: string) => (
-              <button key={s} className={`btn small${s === 'cancelled' ? ' danger' : s === d.allowed[0] ? ' primary' : ''}`} onClick={() => (setMove(s), setNotify(true))}>
+            {forward.map((s: string) => (
+              <button key={s} className={`btn small${s === 'cancelled' ? ' danger' : s === forward[0] ? ' primary' : ''}`} onClick={() => (ONE_TAP.includes(s) ? void doMove(s) : (setMove(s), setNotify(true)))}>
                 {t(`move.${s}` as Key)}
               </button>
             ))}
@@ -96,16 +125,26 @@ export function OrderDetail() {
 
       <div className="tabs" role="tablist">
         {tabs.map((k) => (
-          <button key={k} role="tab" aria-selected={current === k} onClick={() => setTab(k)}>
+          <button key={k} role="tab" aria-selected={current === k} onClick={() => (setTab(k), setHint(null))}>
             {t(`order.tab.${k}` as Key)}
             {k === 'photos' && d.photos.length > 0 ? ` (${d.photos.length})` : ''}
           </button>
         ))}
       </div>
 
-      <div role="tabpanel" className="stack" style={{ gap: 20 }}>
+      <div role="tabpanel" className="stack" style={{ gap: 20 }} id="order-next">
+        {hint && (
+          <div className="next-step" role="status">
+            <span>
+              <strong>{t('next.title')}</strong> {t(hint as Key)}
+            </span>
+            <button className="btn ghost small" onClick={() => setHint(null)}>
+              {t('next.ok')}
+            </button>
+          </div>
+        )}
         {current === 'work' && <WorkTab d={d} reload={reload} />}
-        {current === 'photos' && <PhotosTab d={d} reload={reload} />}
+        {current === 'photos' && <PhotosTab key={o.status} d={d} reload={reload} />}
         {current === 'quote' && <QuoteTab d={d} reload={reload} />}
         {current === 'invoice' && <InvoiceTab d={d} reload={reload} />}
         {current === 'history' && <HistoryTab d={d} />}
@@ -117,7 +156,7 @@ export function OrderDetail() {
         </p>
         <TextArea label={`${t('common.notes')} (${t('common.optional')})`} value={note} onChange={(e) => setNote(e.target.value)} />
         {notifies && <Check label={t('move.notify')} checked={notify} onChange={setNotify} />}
-        <button className={`btn ${move === 'cancelled' ? 'danger' : 'primary'}`} disabled={busy} onClick={doMove}>
+        <button className={`btn ${move === 'cancelled' ? 'danger' : 'primary'}`} disabled={busy} onClick={() => void doMove()}>
           {move ? t(`move.${move}` as Key) : ''}
         </button>
       </Sheet>
