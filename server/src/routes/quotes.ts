@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { parse, requireUser } from '../app.js';
 import { one, q, tx } from '../db.js';
+import { audit } from '../lib/audit.js';
 import { AppError, notFound } from '../lib/errors.js';
 import type { Lang } from '../lib/i18n.js';
 import { computeTotals, lineTotal } from '../lib/money.js';
@@ -80,6 +81,30 @@ export async function quoteRoutes(app: FastifyInstance) {
       if (!qt) throw notFound();
       const sigId = b.signature && b.signer_name ? await saveSignature(qt.order_id, 'quote', b.signer_name, b.signature, { ip: req.ip, ua: req.headers['user-agent'] }, c) : null;
       return decideQuote(c, id, b.decisions, { kind: 'staff', userId: req.user!.id }, { ip: req.ip, signatureId: sigId });
+    });
+  });
+
+  /**
+   * Volver a cotizar después de un rechazo: los trabajos rechazados vuelven a «pendiente»,
+   * la orden vuelve a diagnóstico y se puede mandar una cotización nueva (precios o trabajos distintos).
+   * La factura de la visita queda; si el cliente aprueba, se convierte sola en factura de reparación.
+   */
+  app.post('/orders/:id/requote', async (req) => {
+    const { id } = parse(z.object({ id: uuid }), req.params);
+    return tx(async (c) => {
+      const o = await one<{ status: string }>('SELECT status FROM orders WHERE id=$1 FOR UPDATE', [id], c);
+      if (!o) throw notFound();
+      const last = await one<{ status: string }>('SELECT status FROM quotes WHERE order_id=$1 ORDER BY version DESC LIMIT 1', [id], c);
+      if (!['rejected', 'ready'].includes(o.status) || last?.status !== 'rejected') throw new AppError(409, 'order.bad_transition', { from: o.status, to: 'diagnosis' });
+      const r = await q(`UPDATE order_lines SET approval='pending' WHERE order_id=$1 AND approval='rejected' RETURNING id`, [id], c);
+      await q(`UPDATE orders SET status='diagnosis', updated_at=now() WHERE id=$1`, [id], c);
+      await q(
+        `INSERT INTO order_status_history (order_id, from_status, to_status, user_id, actor, note, created_at) VALUES ($1,$2,'diagnosis',$3,'staff','requote', clock_timestamp())`,
+        [id, o.status, req.user!.id],
+        c,
+      );
+      await audit(req, 'order.requote', 'order', id, { status: o.status }, { lines: r.length }, c);
+      return { ok: true, lines: r.length };
     });
   });
 

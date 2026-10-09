@@ -60,8 +60,27 @@ export function QuoteTab({ d, reload }: { d: any; reload: () => void }) {
   const missingOffers = d.parts.filter((p: any) => ['pending', 'quoted'].includes(p.status));
   const qTone: Record<string, string> = { sent: 'quote_sent', approved: 'paid', partial: 'partial', rejected: 'cancelled', superseded: 'closed' };
 
+  const lastQuote = d.quotes[0];
+  const canRequote = ['ready', 'rejected'].includes(d.order.status) && lastQuote?.status === 'rejected';
+
   return (
     <section className="section">
+      {canRequote && (
+        <div className="panel pad stack">
+          <strong>{t('requote.title')}</strong>
+          <p className="muted small">{t('requote.help')}</p>
+          <button
+            className="btn primary"
+            disabled={busy}
+            onClick={async () => {
+              const r = await run(() => post(`/orders/${d.order.id}/requote`, {}), t('requote.done'));
+              if (r) reload();
+            }}
+          >
+            {t('requote.button')}
+          </button>
+        </div>
+      )}
       {canSend && (
         <div className="panel pad">
           {pending.length === 0 ? (

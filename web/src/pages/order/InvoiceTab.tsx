@@ -1,3 +1,4 @@
+import { InvoiceEditor } from './InvoiceEditor';
 import { useState } from 'react';
 import { post } from '../../api';
 import { Input, MoneyInput, Select, Sheet, Status, useAction } from '../../components/ui';
@@ -111,6 +112,7 @@ export function InvoiceTab({ d, reload }: { d: any; reload: () => void }) {
                   PDF {d.client.lang.toUpperCase()}
                 </a>
               )}
+              {user?.role === 'admin' && inv.status !== 'void' && d.order.status !== 'closed' && <InvoiceEditor invoice={inv} lines={d.lines} onDone={reload} />}
               {user?.role === 'admin' && inv.status !== 'void' && (
                 <button className="btn small danger" onClick={() => (setVoiding(inv), setReason(''))}>
                   {t('invoice.void')}
