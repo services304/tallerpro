@@ -1,3 +1,4 @@
+import { ClientLinkButton } from '../components/ClientLink';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { post } from '../api';
@@ -67,6 +68,7 @@ export function OrderDetail() {
             </p>
           </div>
           <div className="row">
+            <ClientLinkButton orderId={o.id} hasPendingQuote={d.quotes?.some((q: any) => q.status === 'sent')} />
             {d.client.phone && (
               <a className="btn small" href={telUrl(d.client.phone)}>
                 <IconPhone />

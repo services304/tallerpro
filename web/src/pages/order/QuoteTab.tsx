@@ -12,7 +12,7 @@ export function QuoteLines({ lines, decisions, setDecision }: { lines: any[]; de
       {lines.map((l) => {
         const dec = decisions?.[l.id] ?? l.decision;
         return (
-          <li key={l.id} className="qline">
+          <li key={l.id} className={`qline${setDecision ? ` dec-${dec ?? 'none'}` : ''}`}>
             <div>
               {l.description}
               {l.part_condition && <span className="muted small"> — {t(`order.condition.${l.part_condition}` as Key)}</span>}
@@ -29,11 +29,13 @@ export function QuoteLines({ lines, decisions, setDecision }: { lines: any[]; de
               )}
             </div>
             {setDecision && (
-              <div className="seg" role="group" aria-label={l.description}>
-                <button type="button" aria-pressed={dec === 'approved'} onClick={() => setDecision(l.id, 'approved')}>
+              <div className="decide" role="group" aria-label={l.description}>
+                <button type="button" className="dec-yes" aria-pressed={dec === 'approved'} onClick={() => setDecision(l.id, 'approved')}>
+                  {dec === 'approved' ? '✓ ' : ''}
                   {t('quote.approve')}
                 </button>
-                <button type="button" aria-pressed={dec === 'rejected'} onClick={() => setDecision(l.id, 'rejected')}>
+                <button type="button" className="dec-no" aria-pressed={dec === 'rejected'} onClick={() => setDecision(l.id, 'rejected')}>
+                  {dec === 'rejected' ? '✕ ' : ''}
                   {t('quote.reject')}
                 </button>
               </div>
@@ -128,7 +130,7 @@ export function QuoteTab({ d, reload }: { d: any; reload: () => void }) {
             <button type="button" className="btn ghost small" onClick={() => sig.current?.clear()}>
               {t('quote.clearSignature')}
             </button>
-            {decide.lines.some((l: any) => !decisions[l.id]) && <p className="muted small">{t('quote.pickEach')}</p>}
+            <DecisionSummary lines={decide.lines} decisions={decisions} />
             <button
               className="btn primary"
               disabled={busy || decide.lines.some((l: any) => !decisions[l.id])}
@@ -147,5 +149,21 @@ export function QuoteTab({ d, reload }: { d: any; reload: () => void }) {
         )}
       </Sheet>
     </section>
+  );
+}
+
+/** Cuánto suma lo aprobado y qué falta decidir (taller y portal del cliente). */
+export function DecisionSummary({ lines, decisions }: { lines: any[]; decisions: Record<string, string> }) {
+  const { t, f } = useI18n();
+  const missing = lines.filter((l) => !decisions[l.id]).length;
+  const approved = lines.filter((l) => decisions[l.id] === 'approved');
+  const sum = approved.reduce((s, l) => s + l.total_cents, 0);
+  return (
+    <div className={`decision-summary${missing ? '' : ' ok'}`} role="status">
+      <span>
+        {t('quote.approvedSoFar', { n: approved.length, t: lines.length })} — <strong>{f.money(sum)}</strong> {t('quote.plusTaxes')}
+      </span>
+      {missing > 0 && <span className="error-msg">{t('quote.missingDecisions', { n: missing })}</span>}
+    </div>
   );
 }

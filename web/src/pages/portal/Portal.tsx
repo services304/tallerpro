@@ -8,7 +8,7 @@ import { SignaturePad, type SignatureHandle } from '../../components/media';
 import { Check, Input, Loading, OrderStatus, Status, Tag, useAction, useLoad, vehicleName } from '../../components/ui';
 import { useI18n, type Key } from '../../i18n';
 import { PhotoGrid } from '../order/PhotosTab';
-import { QuoteLines } from '../order/QuoteTab';
+import { DecisionSummary, QuoteLines } from '../order/QuoteTab';
 import { Totals } from '../order/WorkTab';
 
 function QuoteDecision({ token, quote, clientName, onDone }: { token: string; quote: any; clientName: string; onDone: () => void }) {
@@ -34,16 +34,17 @@ function QuoteDecision({ token, quote, clientName, onDone }: { token: string; qu
       </div>
       <QuoteLines lines={quote.lines} decisions={decisions} setDecision={(id, v) => setDecisions({ ...decisions, [id]: v })} />
       <Totals totals={quote} />
-      {all && (
-        <p>
-          {t('order.approvedTotal')}: <strong>{f.money(approvedTotal)}</strong> + {t('common.gst')}/{t('common.qst')}
-        </p>
-      )}
+      <DecisionSummary lines={quote.lines} decisions={decisions} />
       <h3>{t('portal.sign')}</h3>
       <Input label={t('portal.signName')} value={name} onChange={(e) => setName(e.target.value)} />
       <SignaturePad ref={sig} onChange={(e) => setSigned(!e)} />
+      {(!all || !signed || !name.trim()) && (
+        <p className="muted small">
+          {!all ? t('portal.needDecisions') : !name.trim() ? t('portal.needName') : t('portal.needSignature')}
+        </p>
+      )}
       <button
-        className="btn primary"
+        className="btn primary big"
         disabled={busy || !all || !signed || !name.trim()}
         onClick={async () => {
           const r = await run(() => post(`/portal/${token}/quotes/${quote.id}/decision`, { decisions, signer_name: name, signature: sig.current?.toDataUrl() }), t('portal.thanks'));
@@ -52,6 +53,34 @@ function QuoteDecision({ token, quote, clientName, onDone }: { token: string; qu
       >
         {t('portal.confirm')}
       </button>
+    </div>
+  );
+}
+
+const STEPS = ['received', 'quote', 'repair', 'ready', 'delivered'] as const;
+function stepOf(status: string) {
+  if (['received', 'diagnosis'].includes(status)) return 0;
+  if (['parts_quote', 'quote_sent', 'rejected'].includes(status)) return 1;
+  if (['approved', 'waiting_parts', 'in_repair', 'quality_check'].includes(status)) return 2;
+  if (status === 'ready') return 3;
+  return 4;
+}
+
+/** Barra de avance para el cliente + qué significa el estado actual, en palabras simples. */
+function Progress({ status }: { status: string }) {
+  const { t } = useI18n();
+  if (status === 'cancelled') return <p className="notice">{t('portal.explain.cancelled')}</p>;
+  const cur = stepOf(status);
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <ol className="progress" aria-label={t('portal.progress')}>
+        {STEPS.map((s, i) => (
+          <li key={s} className={i < cur ? 'done' : i === cur ? 'now' : ''} aria-current={i === cur ? 'step' : undefined}>
+            <span>{t(`portal.step.${s}` as Key)}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="panel pad small">{t(`portal.explain.${status}` as Key)}</p>
     </div>
   );
 }
@@ -174,6 +203,12 @@ export function Portal() {
       </header>
       <main className="main" style={{ paddingBottom: 48 }}>
         <h1>{t('portal.hello', { name: d.client.name.split(' ')[0] })}</h1>
+        {d.orders.some((o: any) => o.quotes.some((q: any) => q.status === 'sent')) && (
+          <a className="approval-alert" href="#approve">
+            <strong>{t('portal.pendingTitle')}</strong>
+            <span>{t('portal.pendingHelp')}</span>
+          </a>
+        )}
 
         {d.visits.length > 0 && (
           <section className="panel pad">
@@ -200,10 +235,11 @@ export function Portal() {
                 <OrderStatus status={o.status} />
               </div>
               <p className="muted">{[vehicleName(o), o.plate].filter(Boolean).join(' — ')}</p>
+              <Progress status={o.status} />
               {o.reason && <p>{o.reason}</p>}
 
               {openQuote && (
-                <div className="panel pad">
+                <div className="panel pad approval-box" id="approve">
                   <h2>{t('portal.quote')}</h2>
                   <p className="muted small">{t('quote.validUntil', { d: f.date(openQuote.valid_until + 'T12:00:00') })}</p>
                   <QuoteDecision token={token} quote={openQuote} clientName={d.client.name} onDone={reload} />

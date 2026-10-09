@@ -411,3 +411,24 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .field-error .phone-label { color: var(--danger); }
 .phone-inputs { display: grid; grid-template-columns: auto 92px 1fr; gap: 8px; align-items: center; }
 .phone-cc { padding: 0 6px; font-weight: 600; white-space: nowrap; }
+
+/* Aprobar / rechazar: colores claros */
+.decide { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.decide button { min-height: 44px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.decide .dec-yes[aria-pressed='true'] { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.decide .dec-no[aria-pressed='true'] { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+.qline.dec-none { box-shadow: inset 4px 0 0 var(--accent); }
+.qline.dec-approved { box-shadow: inset 4px 0 0 var(--ok); }
+.qline.dec-rejected { box-shadow: inset 4px 0 0 var(--danger); opacity: 0.85; }
+.decision-summary { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); }
+.decision-summary.ok { border: 1px solid var(--ok); }
+/* Portal: aviso de aprobación pendiente y barra de avance */
+.approval-alert { display: grid; gap: 2px; padding: 14px; border-radius: var(--radius); background: var(--accent); color: #111214; text-decoration: none; }
+.approval-alert span { font-size: 14px; }
+.approval-box { border: 2px solid var(--accent); scroll-margin-top: 80px; }
+.progress { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.progress li { text-align: center; font-size: 12px; color: var(--muted); }
+.progress li::before { content: ''; display: block; height: 6px; border-radius: 999px; background: var(--surface-2); margin-bottom: 6px; }
+.progress li.done::before { background: var(--ok); }
+.progress li.now::before { background: var(--accent); }
+.progress li.now { color: var(--ink); font-weight: 700; }

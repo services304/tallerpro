@@ -6,6 +6,7 @@ import { audit } from '../lib/audit.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { docLabels, type Lang } from '../lib/i18n.js';
 import { computeTotals } from '../lib/money.js';
+import { portalLink } from '../lib/notify.js';
 import { EDITABLE_LINE_STATUSES, isManualAllowed, manualTargets, OPEN_STATUSES, type OrderStatus, ORDER_STATUSES, STATUS_EVENTS } from '../lib/orderStates.js';
 import { approvedTotals, getSettings, maybeClose, moneyFor, nextOrderNumber, notifyOrder, transition } from '../services/orders.js';
 
@@ -260,6 +261,37 @@ export async function orderRoutes(app: FastifyInstance) {
       [id, b.kind, b.description, b.work_type_id ?? null, b.quantity, price, cost, b.kind === 'part' ? b.part_condition ?? 'new' : null, pos!.p,
         b.kind === 'part' ? b.inventory_item_id ?? null : null],
     );
+  });
+
+  /**
+   * Enlace para que el cliente vea su vehículo (estado, fotos, aprobaciones) cuando el dueño quiera mandarlo.
+   * Devuelve también un mensaje listo para WhatsApp/SMS en el idioma del cliente.
+   */
+  app.post('/orders/:id/portal-link', async (req) => {
+    const { id } = parse(z.object({ id: uuid }), req.params);
+    const o = await one<{ client_id: string; number: string; name: string; phone: string | null; email: string | null; lang: Lang; make: string; model: string; pending: number }>(
+      `SELECT o.client_id, o.number, c.name, c.phone, c.email, c.lang, v.make, v.model,
+              (SELECT count(*)::int FROM quotes qt WHERE qt.order_id=o.id AND qt.status='sent') AS pending
+         FROM orders o JOIN clients c ON c.id=o.client_id JOIN vehicles v ON v.id=o.vehicle_id WHERE o.id=$1 AND c.anonymized_at IS NULL`,
+      [id],
+    );
+    if (!o) throw notFound();
+    const url = await portalLink(o.client_id, id);
+    const first = o.name.split(' ')[0];
+    const veh = [o.make, o.model].filter(Boolean).join(' ');
+    const msg = {
+      es: o.pending
+        ? `Hola ${first}, tu cotización para el ${veh} (orden ${o.number}) está lista. Revísala y apruébala aquí: ${url}`
+        : `Hola ${first}, aquí puedes ver en todo momento cómo va tu ${veh} (orden ${o.number}), con fotos: ${url}`,
+      en: o.pending
+        ? `Hi ${first}, your estimate for the ${veh} (order ${o.number}) is ready. Review and approve it here: ${url}`
+        : `Hi ${first}, follow your ${veh} (order ${o.number}) anytime, with photos: ${url}`,
+      fr: o.pending
+        ? `Bonjour ${first}, votre évaluation pour le ${veh} (bon ${o.number}) est prête. Consultez-la et approuvez-la ici : ${url}`
+        : `Bonjour ${first}, suivez votre ${veh} (bon ${o.number}) en tout temps, avec photos : ${url}`,
+    }[o.lang];
+    await audit(req, 'portal.link', 'order', id);
+    return { url, message: msg, phone: o.phone, email: o.email, pending: o.pending };
   });
 
   app.patch('/orders/:id/lines/:lineId', async (req) => {
