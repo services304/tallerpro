@@ -1,10 +1,11 @@
+import { LocateButton, placeUrl, type Located } from '../components/LocateButton';
 import { BookingActions } from '../components/BookingActions';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { get, patch, post } from '../api';
 import { ClientForm, ClientSearch } from '../components/forms';
 import { IconMap } from '../components/icons';
-import { Check, Empty, Input, LoadError, Loading, mapsUrl, MoneyInput, Select, Sheet, Status, TextArea, useAction, useLoad, vehicleName } from '../components/ui';
+import { Check, Empty, Input, LoadError, Loading, MoneyInput, Select, Sheet, Status, TextArea, useAction, useLoad, vehicleName } from '../components/ui';
 import { useI18n, type Key } from '../i18n';
 
 /** Valor para <input type="datetime-local"> en la hora del teléfono. */
@@ -36,6 +37,7 @@ export function VisitForm({ clientId: initialClient, onDone }: { clientId?: stri
     notes: '',
     notify: true,
   });
+  const [location, setLocation] = useState<Located | null>(null);
 
   useEffect(() => {
     if (initialClient) get(`/clients/${initialClient}`).then((d) => setClient(d.client));
@@ -83,6 +85,8 @@ export function VisitForm({ clientId: initialClient, onDone }: { clientId?: stri
           visit_fee_cents: form.fee ?? undefined,
           notes: form.notes,
           notify: form.notify,
+          lat: location?.lat ?? null,
+          lng: location?.lng ?? null,
         }),
       t('agenda.created'),
     );
@@ -120,6 +124,14 @@ export function VisitForm({ clientId: initialClient, onDone }: { clientId?: stri
         ))}
       </Select>
       <Input label={t('common.address')} hint={t('agenda.addressFromClient')} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+      <LocateButton
+        value={location}
+        onLocated={(l) => {
+          setLocation(l);
+          if (l?.address) setForm((f) => ({ ...f, address: l.address! }));
+        }}
+      />
+      <p className="muted small">{t('loc.staffHint')}</p>
       <MoneyInput label={t('agenda.fee')} hint={t('agenda.feeHelp')} cents={form.fee} onChange={(fee) => setForm({ ...form, fee })} />
       <TextArea label={t('common.notes')} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
       <Check label={t('agenda.notify')} checked={form.notify} onChange={(notify) => setForm({ ...form, notify })} />
@@ -195,7 +207,7 @@ export function Agenda() {
                         {t('today.startIntake')}
                       </Link>
                     )}
-                    <a className="btn small" href={mapsUrl(v.address)} target="_blank" rel="noreferrer">
+                    <a className="btn small" href={placeUrl(v.address, v.lat, v.lng)} target="_blank" rel="noreferrer">
                       <IconMap />
                       <span className="sr-only">{t('common.openMap')}</span>
                     </a>

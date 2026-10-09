@@ -1,9 +1,10 @@
+import { placeUrl } from '../components/LocateButton';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { del, post } from '../api';
 import { ClientForm, emptyVehicle, VehicleFields, vehicleBody } from '../components/forms';
 import { IconMap, IconPhone } from '../components/icons';
-import { Check, Empty, LoadError, Loading, mapsUrl, OrderStatus, Sheet, Status, Tag, telUrl, useAction, useLoad, useToast, vehicleName } from '../components/ui';
+import { Check, Empty, LoadError, Loading, OrderStatus, Sheet, Status, Tag, telUrl, useAction, useLoad, useToast, vehicleName } from '../components/ui';
 import { useI18n, type Key } from '../i18n';
 import { useSession } from '../session';
 
@@ -135,7 +136,7 @@ export function ClientDetail() {
             </a>
           )}
           {c.address && (
-            <a className="btn" href={mapsUrl(c.address)} target="_blank" rel="noreferrer">
+            <a className="btn" href={placeUrl(c.address, c.lat, c.lng)} target="_blank" rel="noreferrer">
               <IconMap />
               <span className="sr-only">{t('common.openMap')}</span>
             </a>

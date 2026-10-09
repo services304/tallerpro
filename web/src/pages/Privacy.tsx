@@ -27,7 +27,7 @@ export function Privacy() {
         <p>Le propriétaire du garage est responsable de la protection de vos renseignements. Pour toute question ou demande : {contact}.</p>
         <h2>Renseignements recueillis</h2>
         <p>
-          Nom, téléphone, courriel, adresse du service, langue préférée; renseignements sur votre véhicule (NIV, plaque, marque, modèle,
+          Nom, téléphone, courriel, adresse du service et, si vous la partagez, la position GPS de l’endroit où se trouve le véhicule (seulement pour nous y rendre), langue préférée; renseignements sur votre véhicule (NIV, plaque, marque, modèle,
           kilométrage); photos et vidéos du véhicule; signatures; évaluations, factures et paiements; messages échangés avec nous.
         </p>
         <h2>Pourquoi nous les utilisons</h2>

@@ -111,3 +111,40 @@ describe('reservas en línea', () => {
     }
   });
 });
+
+describe('ubicación del cliente (taller móvil)', () => {
+  it('la reserva guarda la ubicación GPS y acepta solo GPS si no escribió dirección', async () => {
+    const slot = await firstSlot();
+    const r = await guest.post('/api/public/booking', { ...base, address: '', start: slot, location: { lat: 45.5017, lng: -73.5673, accuracy: 18 } });
+    expect(r.status).toBe(200);
+    const v = (await owner.get('/api/visits')).json.find((x: any) => x.status === 'requested');
+    expect(v).toMatchObject({ lat: 45.5017, lng: -73.5673, location_accuracy_m: 18 });
+    expect(v.address).toBe('GPS 45.50170, -73.56730');
+    const dash = (await owner.get('/api/dashboard')).json.bookings[0];
+    expect(dash).toMatchObject({ lat: 45.5017, lng: -73.5673 });
+    // Sin dirección ni GPS: no se acepta
+    const other = (await guest.get('/api/public/booking/slots')).json.days[0].slots[0];
+    expect((await guest.post('/api/public/booking', { ...base, phone: '514 555 0150', address: '', start: other })).status).toBe(400);
+  });
+
+  it('el dueño puede agendar con la ubicación actual', async () => {
+    const c = (await owner.post('/api/clients', { name: 'Ana', phone: '514 555 0161' })).json;
+    const r = await owner.post('/api/visits', { client_id: c.id, scheduled_start: new Date(Date.now() + 86400_000).toISOString(), lat: 45.6, lng: -73.7, notify: false });
+    expect(r.status).toBe(200);
+    const v = (await owner.get('/api/visits')).json.find((x: any) => x.id === r.json.id);
+    expect(v).toMatchObject({ lat: 45.6, lng: -73.7, address: 'GPS 45.60000, -73.70000' });
+  });
+
+  it('arma la dirección de OpenStreetMap y no falla si el servicio no responde', async () => {
+    const { formatOsmAddress, reverseGeocode } = await import('../src/lib/geocode.js');
+    expect(formatOsmAddress({ house_number: '1200', road: 'Rue Sainte-Catherine Ouest', city: 'Montréal', postcode: 'H3B 1K9' })).toBe('1200 Rue Sainte-Catherine Ouest, Montréal, H3B 1K9');
+    const ok = (async () => new Response(JSON.stringify({ address: { house_number: '5', road: 'Rue X', town: 'Laval' } }))) as any;
+    expect(await reverseGeocode(45.1, -73.1, 'fr', ok)).toBe('5 Rue X, Laval');
+    const fail = (async () => { throw new Error('offline'); }) as any;
+    expect(await reverseGeocode(45.2, -73.2, 'fr', fail)).toBeNull();
+    // La ruta pública responde aunque no haya internet hacia OpenStreetMap
+    const r = await guest.get('/api/public/geocode/reverse?lat=45.3&lng=-73.3&lang=fr');
+    expect(r.status).toBe(200);
+    expect(r.json).toHaveProperty('address');
+  });
+});

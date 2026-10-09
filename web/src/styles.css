@@ -360,3 +360,4 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .booking-done h1 { margin: 0; }
 .linkbox { display: block; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); word-break: break-all; font-size: 14px; }
 @media (max-width: 520px) { .booking .grid3 { grid-template-columns: 1fr 1fr; } }
+.linklike { background: none; border: 0; padding: 0; color: var(--accent-text, var(--accent)); text-decoration: underline; font: inherit; cursor: pointer; }

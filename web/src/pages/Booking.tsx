@@ -1,3 +1,4 @@
+import { LocateButton, type Located } from '../components/LocateButton';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { post } from '../api';
@@ -24,6 +25,7 @@ export function Booking() {
   const [start, setStart] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', channel: 'sms' as 'sms' | 'whatsapp' | 'email', address: '', make: '', model: '', year: '', message: '', website: '' });
   const [consent, setConsent] = useState(false);
+  const [location, setLocation] = useState<Located | null>(null);
   const [done, setDone] = useState<null | { start: string }>(null);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
@@ -34,7 +36,7 @@ export function Booking() {
   const daySlots = useMemo(() => days.find((d) => d.date === day)?.slots ?? [], [days, day]);
   const types = (info.data?.work_types ?? []) as any[];
   const missing =
-    !start || form.name.trim().length < 2 || form.phone.trim().length < 7 || form.address.trim().length < 5 || !form.make.trim() || !form.model.trim() || !consent || (form.channel === 'email' && !form.email.trim());
+    !start || form.name.trim().length < 2 || form.phone.trim().length < 7 || (form.address.trim().length < 5 && !location) || !form.make.trim() || !form.model.trim() || !consent || (form.channel === 'email' && !form.email.trim());
 
   async function submit() {
     const r = await run(() =>
@@ -47,6 +49,7 @@ export function Booking() {
         lang,
         channel: form.channel,
         address: form.address,
+        location: location ? { lat: location.lat, lng: location.lng, accuracy: location.accuracy } : null,
         make: form.make,
         model: form.model,
         year: form.year ? Number(form.year) : null,
@@ -179,7 +182,15 @@ export function Booking() {
             { value: 'email', label: t('common.email') },
           ]}
         />
-        <Input label={t('book.address')} autoComplete="street-address" value={form.address} onChange={set('address')} hint={t('book.addressHint')} />
+        <p className="muted small">{t('loc.why')}</p>
+        <LocateButton
+          value={location}
+          onLocated={(l) => {
+            setLocation(l);
+            if (l?.address && !form.address.trim()) setForm((f) => ({ ...f, address: l.address! }));
+          }}
+        />
+        <Input label={t('book.address')} autoComplete="street-address" value={form.address} onChange={set('address')} hint={location ? t('loc.checkAddress') : t('book.addressHint')} />
       </section>
 
       <section className="section">

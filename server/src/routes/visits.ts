@@ -7,6 +7,7 @@ import type { Lang } from '../lib/i18n.js';
 import { formatMoney } from '../lib/money.js';
 import { enqueue } from '../lib/notify.js';
 import { fmtDate, fmtTime } from '../lib/time.js';
+import { coordsLabel } from '../lib/geocode.js';
 import { getSettings } from '../services/orders.js';
 
 const iso = z.string().datetime({ offset: true });
@@ -83,12 +84,14 @@ export async function visitRoutes(app: FastifyInstance) {
         visit_fee_cents: z.number().int().min(0).max(10_000_000).optional(),
         notes: z.string().max(2000).default(''),
         notify: z.boolean().default(true),
+        lat: z.number().min(-90).max(90).nullable().optional(),
+        lng: z.number().min(-180).max(180).nullable().optional(),
       }),
       req.body,
     );
     const client = await one<{ address: string }>('SELECT address FROM clients WHERE id=$1 AND anonymized_at IS NULL', [b.client_id]);
     if (!client) throw notFound();
-    const address = b.address || client.address;
+    const address = b.address || client.address || (b.lat != null && b.lng != null ? coordsLabel(b.lat, b.lng) : '');
     if (!address) throw new AppError(400, 'validation.failed', { fields: 'address' });
     const s = await getSettings(pool);
     // Una visita de reparación (segunda visita) no cobra otra vez el desplazamiento, salvo que se indique.
@@ -96,10 +99,11 @@ export async function visitRoutes(app: FastifyInstance) {
     const start = new Date(b.scheduled_start);
     const end = new Date(start.getTime() + b.duration_minutes * 60_000);
     const v = await one<{ id: string }>(
-      `INSERT INTO visits (client_id, vehicle_id, order_id, purpose, address, scheduled_start, scheduled_end, visit_fee_cents, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-      [b.client_id, b.vehicle_id ?? null, b.order_id ?? null, b.purpose, address, start, end, fee, b.notes],
+      `INSERT INTO visits (client_id, vehicle_id, order_id, purpose, address, scheduled_start, scheduled_end, visit_fee_cents, notes, lat, lng)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      [b.client_id, b.vehicle_id ?? null, b.order_id ?? null, b.purpose, address, start, end, fee, b.notes, b.lat ?? null, b.lng ?? null],
     );
+    if (b.lat != null && b.lng != null) await q('UPDATE clients SET lat=$2, lng=$3 WHERE id=$1', [b.client_id, b.lat, b.lng]);
     if (!client.address) await q('UPDATE clients SET address=$2 WHERE id=$1', [b.client_id, address]);
     if (b.notify) await notifyVisit(pool, v!.id, 'visit_scheduled');
     return v;

@@ -1,10 +1,11 @@
+import { placeUrl } from '../components/LocateButton';
 import { BookingActions } from '../components/BookingActions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { post } from '../api';
 import { IconMap, IconPhone, IconTruck } from '../components/icons';
 import { ManualList } from '../components/Outbox';
-import { Empty, LoadError, Loading, mapsUrl, Sheet, Status, Tag, telUrl, useAction, useLoad, vehicleName } from '../components/ui';
+import { Empty, LoadError, Loading, Sheet, Status, Tag, telUrl, useAction, useLoad, vehicleName } from '../components/ui';
 import { useI18n, type Key } from '../i18n';
 
 export function Today() {
@@ -86,7 +87,7 @@ export function Today() {
                         {t('today.onTheWay')}
                       </button>
                     )}
-                    <a className="btn small" href={mapsUrl(v.address)} target="_blank" rel="noreferrer">
+                    <a className="btn small" href={placeUrl(v.address, v.lat, v.lng)} target="_blank" rel="noreferrer">
                       <IconMap />
                       <span className="sr-only">{t('common.openMap')}</span>
                     </a>
@@ -134,7 +135,12 @@ export function Today() {
                 <p className="small">
                   {f.dayLong(b.scheduled_start)} — {f.time(b.scheduled_start)}
                 </p>
-                <p className="muted small">{[vehicleName(b), b.address].filter(Boolean).join(' — ')}</p>
+                <p className="muted small">
+                  {[vehicleName(b), b.address].filter(Boolean).join(' — ')}{' '}
+                  <a href={placeUrl(b.address, b.lat, b.lng)} target="_blank" rel="noreferrer">
+                    {t('common.openMap')}
+                  </a>
+                </p>
                 {b.notes && <p className="small">«{b.notes}»</p>}
                 <BookingActions visit={b} onDone={() => void reload()} />
               </article>

@@ -7,6 +7,7 @@ import { AppError } from '../lib/errors.js';
 import type { Lang } from '../lib/i18n.js';
 import { enqueue, sendStaffEmail } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
+import { coordsLabel, reverseGeocode } from '../lib/geocode.js';
 import { fmtDate, fmtTime, localParts, localToUtc, localWeekday } from '../lib/time.js';
 
 type BookingSettings = {
@@ -58,7 +59,8 @@ const bookingInput = z.object({
   email: z.string().trim().email().max(200).nullable().optional().or(z.literal('').transform(() => null)),
   lang: z.enum(['fr', 'en', 'es']).default('fr'),
   channel: z.enum(['sms', 'whatsapp', 'email']).default('sms'),
-  address: z.string().trim().min(5).max(400),
+  address: z.string().trim().max(400).default(''),
+  location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), accuracy: z.number().min(0).max(100_000).optional() }).nullable().optional(),
   make: z.string().trim().min(1).max(60),
   model: z.string().trim().min(1).max(60),
   year: z.number().int().min(1950).max(2100).nullable().optional(),
@@ -85,6 +87,13 @@ export async function bookingRoutes(app: FastifyInstance) {
     };
   });
 
+  /** Dirección aproximada a partir del GPS del teléfono (para prellenar el campo). */
+  app.get('/public/geocode/reverse', async (req) => {
+    rateLimit(req, 'geocode', 30, 10 * 60_000);
+    const b = parse(z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180), lang: z.enum(['fr', 'en', 'es']).default('fr') }), req.query);
+    return { address: await reverseGeocode(b.lat, b.lng, b.lang) };
+  });
+
   app.get('/public/booking/slots', async () => {
     const s = await bookingSettings();
     if (!s.booking_enabled) return { days: [] };
@@ -99,6 +108,10 @@ export async function bookingRoutes(app: FastifyInstance) {
     const phone = normalizePhone(b.phone);
     if (!phone) throw new AppError(400, 'validation.failed', { fields: 'phone' });
     if (b.channel === 'email' && !b.email) throw new AppError(400, 'validation.failed', { fields: 'email' });
+    // Taller móvil: hace falta una dirección escrita o la ubicación GPS (o ambas).
+    if (b.address.length < 5 && !b.location) throw new AppError(400, 'validation.failed', { fields: 'address' });
+    const address = b.address.length >= 5 ? b.address : coordsLabel(b.location!.lat, b.location!.lng);
+    const loc = b.location ?? null;
 
     const result = await tx(async (c) => {
       // Una reserva a la vez, para que dos clientes no tomen el mismo horario.
@@ -117,14 +130,15 @@ export async function bookingRoutes(app: FastifyInstance) {
       );
       if (client) {
         await q(
-          `UPDATE clients SET address = CASE WHEN address='' THEN $2 ELSE address END, email = COALESCE(email, $3), updated_at=now() WHERE id=$1`,
-          [client.id, b.address, b.email ?? null],
+          `UPDATE clients SET address = CASE WHEN address='' THEN $2 ELSE address END, email = COALESCE(email, $3),
+                  lat = COALESCE($4, lat), lng = COALESCE($5, lng), updated_at=now() WHERE id=$1`,
+          [client.id, address, b.email ?? null, loc?.lat ?? null, loc?.lng ?? null],
           c,
         );
       } else {
         client = await one(
-          `INSERT INTO clients (name, phone, email, address, lang, channels, notes_internal) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, address, email`,
-          [b.name, phone, b.email ?? null, b.address, b.lang, [b.channel], 'Reservó en línea.'],
+          `INSERT INTO clients (name, phone, email, address, lang, channels, notes_internal, lat, lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, address, email`,
+          [b.name, phone, b.email ?? null, address, b.lang, [b.channel], 'Reservó en línea.', loc?.lat ?? null, loc?.lng ?? null],
           c,
         );
         await q(`INSERT INTO consents (client_id, kind, granted, source) VALUES ($1,'service',true,'booking')`, [client!.id], c);
@@ -147,15 +161,16 @@ export async function bookingRoutes(app: FastifyInstance) {
       const start = new Date(b.start);
       const end = new Date(start.getTime() + s.booking_slot_minutes * 60_000);
       const v = await one<{ id: string }>(
-        `INSERT INTO visits (client_id, vehicle_id, purpose, address, scheduled_start, scheduled_end, visit_fee_cents, notes, status, source, work_type_id, client_message)
-         VALUES ($1,$2,'diagnosis',$3,$4,$5,$6,$7,'requested','online',$8,$9) RETURNING id`,
-        [client!.id, vehicle!.id, b.address, start, end, s.visit_fee_cents, [job, b.message].filter(Boolean).join(' — '), wt?.id ?? null, b.message],
+        `INSERT INTO visits (client_id, vehicle_id, purpose, address, scheduled_start, scheduled_end, visit_fee_cents, notes, status, source, work_type_id, client_message, lat, lng, location_accuracy_m)
+         VALUES ($1,$2,'diagnosis',$3,$4,$5,$6,$7,'requested','online',$8,$9,$10,$11,$12) RETURNING id`,
+        [client!.id, vehicle!.id, address, start, end, s.visit_fee_cents, [job, b.message].filter(Boolean).join(' — '), wt?.id ?? null, b.message,
+          loc?.lat ?? null, loc?.lng ?? null, loc?.accuracy != null ? Math.round(loc.accuracy) : null],
         c,
       );
       // Al cliente: «recibimos tu solicitud» (solo si los mensajes salen solos; en modo manual lo ve en pantalla).
       if (s.messaging_mode === 'auto') {
         await enqueue(
-          { event: 'booking_received', clientId: client!.id, vars: { date: fmtDate(start, b.lang), time: fmtTime(start, b.lang), address: b.address } },
+          { event: 'booking_received', clientId: client!.id, vars: { date: fmtDate(start, b.lang), time: fmtTime(start, b.lang), address } },
           c,
         );
       }
@@ -168,7 +183,7 @@ export async function bookingRoutes(app: FastifyInstance) {
       await sendStaffEmail(
         result.s.shop_email,
         `Nueva cita por confirmar — ${b.name}`,
-        `${b.name} (${b.phone}) pidió una cita el ${when}.\n${b.make} ${b.model}${b.year ? ` ${b.year}` : ''}\n${b.address}\n${result.job}${b.message ? `\n«${b.message}»` : ''}\n\nConfírmala en la Agenda de la app.`,
+        `${b.name} (${b.phone}) pidió una cita el ${when}.\n${b.make} ${b.model}${b.year ? ` ${b.year}` : ''}\n${address}${loc ? `\nhttps://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}` : ''}\n${result.job}${b.message ? `\n«${b.message}»` : ''}\n\nConfírmala en la Agenda de la app.`,
       ).catch((e) => req.log.error(e));
     }
     return { ok: true, start: result.start.toISOString() };

@@ -13,7 +13,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const isAdmin = req.user!.role === 'admin';
     const [visitsToday, byStatus, readyOld, pendingQuotes, failed, messages, money] = await Promise.all([
       q(
-        `SELECT v.id, v.scheduled_start, v.scheduled_end, v.status, v.address, v.purpose, v.order_id, v.client_id,
+        `SELECT v.id, v.scheduled_start, v.scheduled_end, v.status, v.address, v.lat, v.lng, v.purpose, v.order_id, v.client_id,
                 c.name AS client_name, c.phone AS client_phone, ve.make, ve.model, ve.year, o.number AS order_number
            FROM visits v JOIN clients c ON c.id=v.client_id LEFT JOIN vehicles ve ON ve.id=v.vehicle_id LEFT JOIN orders o ON o.id=v.order_id
           WHERE v.scheduled_start >= $1 AND v.scheduled_start < $2 AND v.status <> 'cancelled'
@@ -58,7 +58,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const storage = st.percent !== null && st.percent >= 80 ? { percent: st.percent, photos_left: st.photos_left } : null;
     // Citas pedidas en línea que esperan confirmación.
     const bookings = await q(
-      `SELECT v.id, v.scheduled_start, v.address, v.notes, c.name AS client_name, c.phone AS client_phone, ve.make, ve.model, ve.year
+      `SELECT v.id, v.scheduled_start, v.address, v.lat, v.lng, v.notes, c.name AS client_name, c.phone AS client_phone, ve.make, ve.model, ve.year
          FROM visits v JOIN clients c ON c.id=v.client_id LEFT JOIN vehicles ve ON ve.id=v.vehicle_id
         WHERE v.status='requested' ORDER BY v.scheduled_start LIMIT 20`,
     );
