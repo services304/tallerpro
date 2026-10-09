@@ -128,3 +128,30 @@ describe('enviar a aprobar desde la lista de trabajos', () => {
     expect((await owner.get(`/api/orders/${o.id}`)).json.order.status).toBe('quote_sent');
   });
 });
+
+describe('el cliente aprueba aunque la orden se haya movido después de enviar', () => {
+  it('cotización enviada → «Cotizar repuestos» → el cliente aprueba en su enlace', async () => {
+    const id = await quotedOrder();
+    expect((await owner.post(`/api/orders/${id}/status`, { to: 'parts_quote' })).status).toBe(200);
+    const link = (await owner.post(`/api/orders/${id}/portal-link`, {})).json.url as string;
+    const token = link.split('/p/')[1];
+    const guest = new Agent(app);
+    const portal = (await guest.get(`/api/portal/${token}`)).json;
+    const quote = portal.orders[0].quotes.find((q: any) => q.status === 'sent');
+    const r = await guest.post(`/api/portal/${token}/quotes/${quote.id}/decision`, {
+      decisions: Object.fromEntries(quote.lines.map((l: any) => [l.id, 'approved'])),
+      signer_name: 'Daniela Restrepo',
+      signature: PNG_1x1,
+    });
+    expect(r.status).toBe(200);
+    expect((await owner.get(`/api/orders/${id}`)).json.order.status).toBe('approved');
+  });
+
+  it('los errores de estado se muestran en palabras', async () => {
+    const id = await quotedOrder();
+    const r = await owner.post(`/api/orders/${id}/status`, { to: 'delivered' });
+    expect(r.status).toBe(409);
+    expect(r.json.message).not.toMatch(/quote_sent|delivered/);
+    expect(r.json.message).toContain('Entregado');
+  });
+});

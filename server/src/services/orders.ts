@@ -211,6 +211,18 @@ export async function decideQuote(
   const quote = await one<{ id: string; order_id: string; status: string }>('SELECT id, order_id, status FROM quotes WHERE id=$1 FOR UPDATE', [quoteId], db);
   if (!quote) throw notFound();
   if (quote.status !== 'sent') throw new AppError(409, 'quote.not_pending');
+  // La cotización sigue vigente aunque la orden se haya movido después (p. ej. «Cotizar repuestos»):
+  // la respuesta del cliente se acepta y la orden vuelve a «cotización enviada» antes de registrarla.
+  const ord = await one<{ status: OrderStatus }>('SELECT status FROM orders WHERE id=$1 FOR UPDATE', [quote.order_id], db);
+  if (ord && ord.status !== 'quote_sent') {
+    if (['closed', 'cancelled', 'delivered'].includes(ord.status)) throw new AppError(409, 'quote.not_pending');
+    await q(`UPDATE orders SET status='quote_sent', updated_at=now() WHERE id=$1`, [quote.order_id], db);
+    await q(
+      `INSERT INTO order_status_history (order_id, from_status, to_status, user_id, actor, note, created_at) VALUES ($1,$2,'quote_sent',NULL,'system','quote answered', clock_timestamp())`,
+      [quote.order_id, ord.status],
+      db,
+    );
+  }
   const lines = await q<{ id: string; order_line_id: string | null }>('SELECT id, order_line_id FROM quote_lines WHERE quote_id=$1', [quoteId], db);
   if (lines.some((l) => !decisions[l.id])) throw new AppError(400, 'quote.decide_all');
 

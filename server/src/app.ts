@@ -1,3 +1,4 @@
+import { statusLabel } from './services/orders.js';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
@@ -151,7 +152,11 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   app.setErrorHandler((err: any, req, reply: FastifyReply) => {
     const lang = req.lang ?? 'fr';
     if (err instanceof AppError) {
-      return reply.status(err.status).send({ error: err.code, message: t(lang, err.code, err.params) });
+      // Estados en palabras (no «parts_quote»).
+      const params = err.code === 'order.bad_transition' && err.params
+        ? { ...err.params, from: statusLabel(lang, String(err.params.from)), to: statusLabel(lang, String(err.params.to)) }
+        : err.params;
+      return reply.status(err.status).send({ error: err.code, message: t(lang, err.code, params) });
     }
     if (err.code === 'FST_REQ_FILE_TOO_LARGE') {
       return reply.status(413).send({ error: 'upload.too_big', message: t(lang, 'upload.too_big', { mb: 60 }) });
