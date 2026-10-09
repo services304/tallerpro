@@ -1,3 +1,4 @@
+import { storageUsage } from './storage.js';
 import type { FastifyInstance } from 'fastify';
 import { requireUser } from '../app.js';
 import { one, q } from '../db.js';
@@ -52,6 +53,9 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const lowStock = await q<{ id: string; name: string; quantity: number; min_quantity: number; unit: string }>(
       `SELECT id, name, quantity, min_quantity, unit FROM inventory_items WHERE active AND quantity <= min_quantity ORDER BY quantity - min_quantity, lower(name) LIMIT 20`,
     );
-    return { visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money, lowStock };
+    // Aviso de espacio cuando pasa del 80 % (solo si hay límite conocido).
+    const st = await storageUsage();
+    const storage = st.percent !== null && st.percent >= 80 ? { percent: st.percent, photos_left: st.photos_left } : null;
+    return { storage, visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money, lowStock };
   });
 }

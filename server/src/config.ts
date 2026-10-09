@@ -41,6 +41,8 @@ export const config = {
     dir: env.STORAGE_DIR ?? path.join(here, '..', 'storage'),
     s3Bucket: env.S3_BUCKET ?? '',
     s3Region: env.S3_REGION ?? 'ca-central-1',
+    /** Límite de la base de datos en MB (Neon gratis: 1 GB). 0 = sin límite conocido. */
+    limitMb: Number(env.STORAGE_LIMIT_MB ?? ((env.STORAGE_DRIVER ?? 'local') === 'db' ? 1024 : 0)),
   },
   sms: {
     provider: (env.SMS_PROVIDER ?? 'log') as 'log' | 'twilio',

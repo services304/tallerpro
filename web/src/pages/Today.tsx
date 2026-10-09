@@ -120,6 +120,13 @@ export function Today() {
         </div>
       )}
 
+      {d.storage && (
+        <p className="notice">
+          {t('storage.warn', { p: f.number(d.storage.percent), n: f.number(d.storage.photos_left) })}{' '}
+          <Link to="/more/settings">{t('more.settings')}</Link>
+        </p>
+      )}
+
       {d.lowStock?.length > 0 && (
         <section className="section">
           <div className="row between">

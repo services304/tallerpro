@@ -3,6 +3,7 @@ import { patch } from '../api';
 import { Check, Input, LoadError, Loading, MoneyInput, Select, TextArea, useAction, useLoad } from '../components/ui';
 import { useI18n } from '../i18n';
 import { useSession } from '../session';
+import { StorageMeter } from '../components/StorageMeter';
 
 export function Settings() {
   const { t } = useI18n();
@@ -47,6 +48,7 @@ export function Settings() {
   return (
     <>
       <h1>{t('more.settings')}</h1>
+      <StorageMeter />
       <section className="section">
         <h2>{t('settings.shop')}</h2>
         <Input label={t('auth.shopName')} value={s.shop_name} onChange={set('shop_name')} />
