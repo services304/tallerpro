@@ -20,12 +20,14 @@ export function VehiclePicker({
   year,
   onChange,
   yearOptional = false,
+  errors = {},
 }: {
   make: string;
   model: string;
   year: string;
   onChange: (v: { make: string; model: string; year: string }) => void;
   yearOptional?: boolean;
+  errors?: { make?: string; model?: string };
 }) {
   const { t } = useI18n();
   const known = match(MAKES, make);
@@ -45,6 +47,7 @@ export function VehiclePicker({
       <div className="stack" style={{ gap: 6 }}>
         <Select
           label={t('book.make')}
+          error={!makeOther ? errors.make : undefined}
           value={makeValue}
           onChange={(e) => {
             const v = e.target.value;
@@ -67,15 +70,16 @@ export function VehiclePicker({
           ))}
           <option value={OTHER}>{t('veh.otherMake')}</option>
         </Select>
-        {makeOther && <Input label={t('veh.typeMake')} value={make} onChange={(e) => onChange({ make: e.target.value, model, year })} autoFocus />}
+        {makeOther && <Input label={t('veh.typeMake')} error={errors.make} value={make} onChange={(e) => onChange({ make: e.target.value, model, year })} autoFocus />}
       </div>
       <div className="stack" style={{ gap: 6 }}>
         {makeOther ? (
-          <Input label={t('book.model')} value={model} onChange={(e) => onChange({ make, model: e.target.value, year })} />
+          <Input label={t('book.model')} error={errors.model} value={model} onChange={(e) => onChange({ make, model: e.target.value, year })} />
         ) : (
           <>
             <Select
               label={t('book.model')}
+              error={!modelOther ? errors.model : undefined}
               value={modelValue}
               disabled={!known}
               onChange={(e) => {
@@ -92,7 +96,7 @@ export function VehiclePicker({
               ))}
               {known && <option value={OTHER}>{t('veh.otherModel')}</option>}
             </Select>
-            {modelOther && known && <Input label={t('veh.typeModel')} value={model} onChange={(e) => onChange({ make, model: e.target.value, year })} autoFocus />}
+            {modelOther && known && <Input label={t('veh.typeModel')} error={errors.model} value={model} onChange={(e) => onChange({ make, model: e.target.value, year })} autoFocus />}
           </>
         )}
       </div>

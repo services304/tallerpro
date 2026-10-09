@@ -146,20 +146,20 @@ export function LoadError({ error, retry }: { error: ApiError; retry?: () => voi
 
 // ---------- Formularios ----------
 
-export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+export function Field({ label, hint, error, children }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode }) {
   return (
-    <label className="field">
+    <label className={`field${error ? ' field-error' : ''}`}>
       <span>{label}</span>
       {children}
-      {hint && <small className="hint">{hint}</small>}
+      {error ? <small className="error-msg" role="alert">{error}</small> : hint && <small className="hint">{hint}</small>}
     </label>
   );
 }
 
-export function Input({ label, hint, ...p }: { label: ReactNode; hint?: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ label, hint, error, ...p }: { label: ReactNode; hint?: ReactNode; error?: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <Field label={label} hint={hint}>
-      <input {...p} />
+    <Field label={label} hint={hint} error={error}>
+      <input aria-invalid={error ? true : undefined} {...p} />
     </Field>
   );
 }
@@ -172,10 +172,10 @@ export function TextArea({ label, hint, ...p }: { label: ReactNode; hint?: React
   );
 }
 
-export function Select({ label, hint, children, ...p }: { label: ReactNode; hint?: ReactNode; children: ReactNode } & SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ label, hint, error, children, ...p }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode } & SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <Field label={label} hint={hint}>
-      <select {...p}>{children}</select>
+    <Field label={label} hint={hint} error={error}>
+      <select aria-invalid={error ? true : undefined} {...p}>{children}</select>
     </Field>
   );
 }

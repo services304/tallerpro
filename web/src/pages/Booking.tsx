@@ -41,8 +41,30 @@ export function Booking() {
   const [triedSend, setTriedSend] = useState(false);
   const daySlots = useMemo(() => days.find((d) => d.date === day)?.slots ?? [], [days, day]);
   const types = (info.data?.work_types ?? []) as any[];
-  const missing =
-    !start || form.name.trim().length < 2 || form.phone.trim().length < 7 || (mode === 'home' && form.address.trim().length < 5 && !location) || !form.make.trim() || !form.model.trim() || !consent || (form.channel === 'email' && !form.email.trim());
+  // Qué falta, en el orden de la página (para marcarlo en rojo y llevar al cliente al primero).
+  const errors: Record<string, string> = {};
+  if (!day) errors.when = t('book.needDay');
+  else if (!start) errors.when = t('book.needTime');
+  if (form.name.trim().length < 2) errors.name = t('book.errName');
+  if (form.phone.replace(/\D/g, '').length < 10) errors.phone = t('book.errPhone');
+  if (form.channel === 'email' ? !/^\S+@\S+\.\S+$/.test(form.email.trim()) : form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = t('book.errEmail');
+  if (mode === 'home' && form.address.trim().length < 5 && !location) errors.address = t('book.errAddress');
+  if (!form.make.trim()) errors.make = t('book.errMake');
+  if (!form.model.trim()) errors.model = t('book.errModel');
+  if (!consent) errors.consent = t('book.errConsent');
+  const show = (k: string) => (triedSend ? errors[k] : undefined);
+  const ORDER: [string, string][] = [
+    ['when', 'book-when'], ['name', 'f-name'], ['phone', 'f-phone'], ['email', 'f-email'], ['address', 'f-address'], ['make', 'f-car'], ['model', 'f-car'], ['consent', 'f-consent'],
+  ];
+  function goToFirstError() {
+    const first = ORDER.find(([k]) => errors[k]);
+    if (!first) return false;
+    const el = document.getElementById(first[1]);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const input = el?.matches('input,select,textarea') ? el : el?.querySelector<HTMLElement>('input,select,textarea,button');
+    setTimeout(() => (input as HTMLElement | null)?.focus({ preventScroll: true }), 350);
+    return true;
+  }
 
   async function submit() {
     const r = await run(() =>
@@ -131,7 +153,7 @@ export function Booking() {
           const list = types.filter((w) => w.category === c && w.mode !== 'hourly');
           const n = list.filter((w) => jobs.includes(w.id)).length;
           return (
-            <details key={c} className="jobcat" open={i < 3 || n > 0}>
+            <details key={c} className="jobcat" open={n > 0 ? true : undefined}>
               <summary>
                 {t(`workTypes.cat.${c}` as Key)}
                 {n > 0 && <span className="status s-ok">{n}</span>}
@@ -154,7 +176,7 @@ export function Booking() {
       </section>
 
       <section className="section">
-        <h2 id="book-when">2. {t('book.when')}</h2>
+        <h2 id="book-when" className={show('when') ? 'error-title' : ''}>2. {t('book.when')}</h2>
         {slots.loading && !slots.data && <Loading />}
         {slots.error && <LoadError error={slots.error} retry={slots.reload} />}
         {slots.data && days.length === 0 && <p className="notice">{t('book.noSlots')}</p>}
@@ -201,7 +223,7 @@ export function Booking() {
                 </div>
               </div>
             ) : (
-              triedSend && <p className="error small">{day ? t('book.needTime') : t('book.needDay')}</p>
+              show('when') && <p className="error-msg" role="alert">{show('when')}</p>
             )}
           </>
         )}
@@ -209,10 +231,10 @@ export function Booking() {
 
       <section className="section">
         <h2>3. {t('book.you')}</h2>
-        <Input label={t('book.name')} autoComplete="name" value={form.name} onChange={set('name')} />
+        <Input id="f-name" label={t('book.name')} autoComplete="name" value={form.name} onChange={set('name')} error={show('name')} />
         <div className="grid2">
-          <Input label={t('common.phone')} type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={set('phone')} />
-          <Input label={`${t('common.email')}${form.channel === 'email' ? '' : ` (${t('common.optional')})`}`} type="email" autoComplete="email" value={form.email} onChange={set('email')} />
+          <Input id="f-phone" label={t('common.phone')} type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={set('phone')} error={show('phone')} />
+          <Input label={`${t('common.email')}${form.channel === 'email' ? '' : ` (${t('common.optional')})`}`} type="email" autoComplete="email" value={form.email} onChange={set('email')} id="f-email" error={show('email')} />
         </div>
         <Seg
           label={t('book.contactBy')}
@@ -249,7 +271,7 @@ export function Booking() {
                 if (l?.address && !form.address.trim()) setForm((f) => ({ ...f, address: l.address! }));
               }}
             />
-            <Input label={t('book.address')} autoComplete="street-address" value={form.address} onChange={set('address')} hint={location ? t('loc.checkAddress') : t('book.addressHint')} />
+            <Input id="f-address" label={t('book.address')} autoComplete="street-address" value={form.address} onChange={set('address')} hint={location ? t('loc.checkAddress') : t('book.addressHint')} error={show('address')} />
           </>
         ) : (
           <p className="notice">{info.data.shop_address ? t('book.dropoffAt', { a: info.data.shop_address }) : t('book.dropoffLater')}</p>
@@ -258,28 +280,32 @@ export function Booking() {
 
       <section className="section">
         <h2>4. {t('book.car')}</h2>
-        <VehiclePicker make={form.make} model={form.model} year={form.year} yearOptional onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
+        <div id="f-car">
+          <VehiclePicker make={form.make} model={form.model} year={form.year} yearOptional errors={{ make: show('make'), model: show('model') }} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
+        </div>
         <TextArea label={`${t('book.message')} (${t('common.optional')})`} value={form.message} onChange={set('message')} placeholder={t('book.messageHint')} />
         {/* Trampa para robots: invisible para personas */}
         <input type="text" name="website" tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} className="hp" aria-hidden="true" />
       </section>
 
-      <Check
-        label={
-          <>
-            {t('book.consent')} <Link to="/privacy">{t('book.privacy')}</Link>
-          </>
-        }
-        checked={consent}
-        onChange={setConsent}
-      />
+      <div id="f-consent" className={show('consent') ? 'block-error' : ''}>
+        <Check
+          label={
+            <>
+              {t('book.consent')} <Link to="/privacy">{t('book.privacy')}</Link>
+            </>
+          }
+          checked={consent}
+          onChange={setConsent}
+        />
+        {show('consent') && <p className="error-msg">{show('consent')}</p>}
+      </div>
       <button
         className="btn primary big"
         disabled={busy}
         onClick={() => {
           setTriedSend(true);
-          if (!start) return document.getElementById('book-when')?.scrollIntoView({ behavior: 'smooth' });
-          if (!missing) setConfirming(true);
+          if (!goToFirstError()) setConfirming(true);
         }}
       >
         {t('book.send')}
@@ -328,7 +354,7 @@ export function Booking() {
           </div>
         )}
       </Sheet>
-      {missing && <p className="muted small">{t('book.fillAll')}</p>}
+      {triedSend && Object.keys(errors).length > 0 && <p className="error small">{t('book.fixRed', { n: Object.keys(errors).length })}</p>}
     </div>
   );
 }

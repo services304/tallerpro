@@ -397,3 +397,10 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .mode { display: grid; gap: 4px; text-align: left; padding: 12px; border-radius: var(--radius); border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
 .mode span { font-size: 13px; color: var(--muted); }
 .mode.on { border-color: var(--accent); background: var(--surface-2); }
+
+/* Campos con error */
+.field-error > span { color: var(--danger); }
+.field-error input, .field-error select, .field-error textarea, [aria-invalid='true'] { border-color: var(--danger) !important; box-shadow: 0 0 0 1px var(--danger); }
+.error-msg { color: var(--danger); font-size: 13px; }
+.block-error { border: 2px solid var(--danger); border-radius: var(--radius); padding: 10px; }
+.error-title { color: var(--danger); }

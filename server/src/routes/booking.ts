@@ -100,7 +100,9 @@ export async function bookingRoutes(app: FastifyInstance) {
     return { address: await reverseGeocode(b.lat, b.lng, b.lang) };
   });
 
-  app.get('/public/booking/slots', async () => {
+  app.get('/public/booking/slots', async (_req, reply) => {
+    // Siempre al día: una hora recién reservada no debe aparecer a nadie más.
+    reply.header('Cache-Control', 'no-store');
     const s = await bookingSettings();
     if (!s.booking_enabled) return { days: [] };
     return { days: await freeSlots(pool, s) };
