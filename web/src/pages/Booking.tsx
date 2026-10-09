@@ -22,6 +22,7 @@ export function Booking() {
   const slots = useLoad<{ days: { date: string; slots: string[] }[] }>('/public/booking/slots');
   const { run, busy } = useAction();
   const [jobs, setJobs] = useState<string[]>([]);
+  const [knows, setKnows] = useState<null | 'yes' | 'no'>(null);
   const toggleJob = (id: string) => setJobs((j) => (j.includes(id) ? j.filter((x) => x !== id) : [...j, id]));
   const [day, setDay] = useState('');
   const [start, setStart] = useState('');
@@ -43,6 +44,8 @@ export function Booking() {
   const types = (info.data?.work_types ?? []) as any[];
   // Qué falta, en el orden de la página (para marcarlo en rojo y llevar al cliente al primero).
   const errors: Record<string, string> = {};
+  if (!knows) errors.what = t('book.errWhat');
+  else if (knows === 'yes' && jobs.length === 0) errors.what = t('book.errPickJob');
   if (!day) errors.when = t('book.needDay');
   else if (!start) errors.when = t('book.needTime');
   if (form.name.trim().length < 2) errors.name = t('book.errName');
@@ -54,7 +57,7 @@ export function Booking() {
   if (!consent) errors.consent = t('book.errConsent');
   const show = (k: string) => (triedSend ? errors[k] : undefined);
   const ORDER: [string, string][] = [
-    ['when', 'book-when'], ['name', 'f-name'], ['phone', 'f-phone'], ['email', 'f-email'], ['address', 'f-address'], ['make', 'f-car'], ['model', 'f-car'], ['consent', 'f-consent'],
+    ['what', 'f-what'], ['when', 'book-when'], ['name', 'f-name'], ['phone', 'f-phone'], ['email', 'f-email'], ['address', 'f-address'], ['make', 'f-car'], ['model', 'f-car'], ['consent', 'f-consent'],
   ];
   function goToFirstError() {
     const first = ORDER.find(([k]) => errors[k]);
@@ -145,11 +148,28 @@ export function Booking() {
 
       <section className="section">
         <h2>1. {t('book.what')}</h2>
-        <p className="muted small">{t('book.pickMany')}</p>
-        <button type="button" className={`chip ${jobs.length === 0 ? 'on' : ''}`} aria-pressed={jobs.length === 0} onClick={() => setJobs([])}>
-          {t('book.notSure')}
-        </button>
-        {CATS.filter((c) => types.some((w) => w.category === c && w.mode !== 'hourly')).map((c, i) => {
+        <div id="f-what" className={`mode-pick${show('what') ? ' block-error' : ''}`}>
+          <button type="button" className={`mode ${knows === 'yes' ? 'on' : ''}`} aria-pressed={knows === 'yes'} onClick={() => setKnows('yes')}>
+            <strong>{t('book.knowYes')}</strong>
+            <span>{t('book.knowYesHelp')}</span>
+          </button>
+          <button
+            type="button"
+            className={`mode ${knows === 'no' ? 'on' : ''}`}
+            aria-pressed={knows === 'no'}
+            onClick={() => {
+              setKnows('no');
+              setJobs([]);
+            }}
+          >
+            <strong>{t('book.knowNo')}</strong>
+            <span>{t('book.knowNoHelp')}</span>
+          </button>
+        </div>
+        {show('what') && <p className="error-msg" role="alert">{show('what')}</p>}
+        {knows === 'no' && <p className="notice">{t('book.fullCheck')}</p>}
+        {knows === 'yes' && <p className="muted small">{t('book.pickMany')}</p>}
+        {knows === 'yes' && CATS.filter((c) => types.some((w) => w.category === c && w.mode !== 'hourly')).map((c, i) => {
           const list = types.filter((w) => w.category === c && w.mode !== 'hourly');
           const n = list.filter((w) => jobs.includes(w.id)).length;
           return (
@@ -172,7 +192,7 @@ export function Booking() {
             </details>
           );
         })}
-        {jobs.length > 0 && <p className="muted small">{t('book.picked', { n: jobs.length })}</p>}
+        {knows === 'yes' && jobs.length > 0 && <p className="muted small">{t('book.picked', { n: jobs.length })}</p>}
       </section>
 
       <section className="section">
@@ -323,7 +343,7 @@ export function Booking() {
             </div>
             <dl className="summary">
               <dt>{t('book.what')}</dt>
-              <dd>{jobs.length ? types.filter((w) => jobs.includes(w.id)).map((w) => workName(w, lang)).join(', ') : t('book.notSure')}</dd>
+              <dd>{jobs.length ? types.filter((w) => jobs.includes(w.id)).map((w) => workName(w, lang)).join(', ') : t('book.knowNoSummary')}</dd>
               <dt>{t('book.where')}</dt>
               <dd>
                 {mode === 'home'
