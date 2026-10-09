@@ -463,7 +463,7 @@ export const fr: Record<Key, string> = {
   'notifications.month': 'Ce mois-ci',
 
   'outbox.title': 'Messages à envoyer',
-  'outbox.help': "Touchez WhatsApp ou Texto : votre cellulaire ouvre le message déjà écrit, il suffit de l'envoyer.",
+  'outbox.help': "Touchez WhatsApp, Texto ou Courriel : votre cellulaire ouvre le message déjà écrit, il suffit de l'envoyer.",
   'outbox.whatsapp': 'WhatsApp',
   'outbox.sms': 'Texto',
   'outbox.skip': 'Ne pas envoyer',
@@ -831,6 +831,9 @@ export const fr: Record<Key, string> = {
   'portal.explain.delivered': 'Travaux livrés. Merci de votre confiance!',
   'portal.explain.closed': 'Travaux livrés et payés. Merci!',
   'portal.explain.cancelled': 'Ce bon a été annulé.',
+  'outbox.email': 'Courriel',
+  'quote.readyToSend': 'Soumission prête. Envoyez-la au client depuis la fenêtre ouverte (WhatsApp, SMS ou courriel).',
+  'quote.noContact': 'Soumission prête, mais le client n’a ni téléphone ni courriel. Utilisez « Lien client » ou ajoutez un contact.',
   'account.title': 'Mon compte',
   'account.changePassword': 'Changer le mot de passe',
   'account.current': 'Mot de passe actuel',

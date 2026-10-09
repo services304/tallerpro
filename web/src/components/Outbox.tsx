@@ -16,7 +16,7 @@ export function smsUrl(phone: string, text: string) {
 /** Lista de avisos preparados: WhatsApp o SMS desde el celular del dueño, sin costo. */
 export function ManualList({ items, onChange }: { items: any[]; onChange: () => void }) {
   const { t, f } = useI18n();
-  async function mark(id: string, result: 'sent' | 'skipped', channel?: 'sms' | 'whatsapp') {
+  async function mark(id: string, result: 'sent' | 'skipped', channel?: 'sms' | 'whatsapp' | 'email') {
     await post(`/notifications/${id}/manual`, { result, channel }).catch(() => {});
     onChange();
   }
@@ -25,7 +25,9 @@ export function ManualList({ items, onChange }: { items: any[]; onChange: () => 
       {items.map((n) => (
         <li key={n.id} className="item" style={{ gap: 8 }}>
           <div className="item-top">
-            <strong>{n.client_name}</strong>
+            <strong>
+              {n.client_name} <span className="muted small">→ {n.to_address}</span>
+            </strong>
             <span className="muted small">
               {t(`templates.event.${n.event}` as Key)}
               {n.order_number ? ` — ${n.order_number}` : ''}
@@ -35,12 +37,24 @@ export function ManualList({ items, onChange }: { items: any[]; onChange: () => 
             {n.body}
           </p>
           <div className="row">
-            <a className="btn primary small" href={whatsappUrl(n.to_address, n.body)} target="_blank" rel="noreferrer" onClick={() => void mark(n.id, 'sent', 'whatsapp')}>
-              {t('outbox.whatsapp')}
-            </a>
-            <a className="btn small" href={smsUrl(n.to_address, n.body)} onClick={() => void mark(n.id, 'sent', 'sms')}>
-              {t('outbox.sms')}
-            </a>
+            {n.channel === 'email' ? (
+              <a
+                className="btn primary small"
+                href={`mailto:${n.to_address}?subject=${encodeURIComponent(n.subject ?? '')}&body=${encodeURIComponent(n.body)}`}
+                onClick={() => void mark(n.id, 'sent', 'email')}
+              >
+                {t('outbox.email')}
+              </a>
+            ) : (
+              <>
+                <a className="btn primary small" href={whatsappUrl(n.to_address, n.body)} target="_blank" rel="noreferrer" onClick={() => void mark(n.id, 'sent', 'whatsapp')}>
+                  {t('outbox.whatsapp')}
+                </a>
+                <a className="btn small" href={smsUrl(n.to_address, n.body)} onClick={() => void mark(n.id, 'sent', 'sms')}>
+                  {t('outbox.sms')}
+                </a>
+              </>
+            )}
             <button className="btn ghost small" onClick={() => void mark(n.id, 'skipped')}>
               {t('outbox.skip')}
             </button>

@@ -30,6 +30,11 @@ async function template(event: NotificationEvent, channel: Channel, lang: Lang, 
   return row ?? defaultTemplates[lang][event];
 }
 
+/** ¿Hay un servicio de correo real? En producción sin SMTP los correos no saldrían. */
+export function emailWorks() {
+  return config.email.provider === 'smtp' ? Boolean(config.email.smtpUrl) : config.env !== 'production';
+}
+
 export interface EnqueueOpts {
   event: NotificationEvent;
   clientId: string;
@@ -90,7 +95,8 @@ export async function enqueue(opts: EnqueueOpts, db: Db = pool): Promise<number>
     const to = opts.to ?? (ch === 'email' ? c.email : c.phone);
     if (!to) continue;
     const tpl = await template(opts.event, ch, c.lang, db);
-    const byHand = manual && ch !== 'email';
+    // Sin servicio de correo configurado, el correo también se envía a mano (si no, se perdería en silencio).
+    const byHand = (manual && ch !== 'email') || (ch === 'email' && !emailWorks());
     await q(
       `INSERT INTO notifications (client_id, order_id, event, channel, to_address, subject, body, scheduled_for, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -127,7 +133,7 @@ function escapeHtml(s: string) {
 }
 
 export class RealProvider implements Provider {
-  private mailer = config.email.provider === 'smtp' ? nodemailer.createTransport(config.email.smtpUrl) : null;
+  private mailer = config.email.provider === 'smtp' && config.email.smtpUrl ? nodemailer.createTransport(config.email.smtpUrl) : null;
   private log = new LogProvider();
 
   async send(channel: Channel, to: string, subject: string, body: string): Promise<SendResult> {

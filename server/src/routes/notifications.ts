@@ -37,7 +37,7 @@ export async function notificationRoutes(app: FastifyInstance) {
   /** Avisos preparados que el dueño debe enviar desde su celular (modo manual). */
   app.get('/notifications/manual', { preHandler: requireUser() }, async () =>
     q(
-      `SELECT n.id, n.event, n.channel, n.to_address, n.body, n.created_at, n.order_id, n.client_id,
+      `SELECT n.id, n.event, n.channel, n.to_address, n.subject, n.body, n.created_at, n.order_id, n.client_id,
               c.name AS client_name, o.number AS order_number
          FROM notifications n LEFT JOIN clients c ON c.id=n.client_id LEFT JOIN orders o ON o.id=n.order_id
         WHERE n.status='manual' ORDER BY n.created_at`,
@@ -47,7 +47,7 @@ export async function notificationRoutes(app: FastifyInstance) {
   /** El dueño lo envió (sent) o decidió no enviarlo (skipped). */
   app.post('/notifications/:id/manual', { preHandler: requireUser() }, async (req) => {
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
-    const { result, channel } = parse(z.object({ result: z.enum(['sent', 'skipped']), channel: z.enum(['sms', 'whatsapp']).optional() }), req.body);
+    const { result, channel } = parse(z.object({ result: z.enum(['sent', 'skipped']), channel: z.enum(['sms', 'whatsapp', 'email']).optional() }), req.body);
     const r = await one(
       `UPDATE notifications SET status=$2, channel=COALESCE($3, channel), sent_at=CASE WHEN $2='sent' THEN now() END, provider_id='manual'
         WHERE id=$1 AND status='manual' RETURNING id`,

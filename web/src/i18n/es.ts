@@ -462,7 +462,7 @@ export const es = {
   'notifications.month': 'Este mes',
 
   'outbox.title': 'Avisos por enviar',
-  'outbox.help': 'Toca WhatsApp o SMS: tu celular abre el mensaje ya escrito, solo tienes que enviarlo.',
+  'outbox.help': 'Toca WhatsApp, SMS o Correo: tu celular abre el mensaje ya escrito, solo tienes que enviarlo.',
   'outbox.whatsapp': 'WhatsApp',
   'outbox.sms': 'SMS',
   'outbox.skip': 'No enviar',
@@ -830,6 +830,9 @@ export const es = {
   'portal.explain.delivered': 'Trabajo entregado. ¡Gracias por tu confianza!',
   'portal.explain.closed': 'Trabajo entregado y pagado. ¡Gracias!',
   'portal.explain.cancelled': 'Esta orden fue cancelada.',
+  'outbox.email': 'Correo',
+  'quote.readyToSend': 'Cotización lista. Envíasela al cliente desde la ventana que se abrió (WhatsApp, SMS o correo).',
+  'quote.noContact': 'Cotización lista, pero el cliente no tiene teléfono ni correo. Usa «Enlace del cliente» o agrégale un contacto.',
   'account.title': 'Mi cuenta',
   'account.changePassword': 'Cambiar contraseña',
   'account.current': 'Contraseña actual',

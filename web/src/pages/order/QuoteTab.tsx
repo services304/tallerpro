@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { post } from '../../api';
 import { SignaturePad, type SignatureHandle } from '../../components/media';
-import { Input, Sheet, Status, useAction } from '../../components/ui';
+import { Input, Sheet, Status, useAction, useToast } from '../../components/ui';
 import { useI18n, type Key } from '../../i18n';
 import { Totals } from './WorkTab';
 
@@ -50,6 +50,7 @@ export function QuoteLines({ lines, decisions, setDecision }: { lines: any[]; de
 export function QuoteTab({ d, reload }: { d: any; reload: () => void }) {
   const { t, f } = useI18n();
   const { run, busy } = useAction();
+  const toast = useToast();
   const [decide, setDecide] = useState<any>(null);
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [signer, setSigner] = useState(d.client.name);
@@ -72,7 +73,12 @@ export function QuoteTab({ d, reload }: { d: any; reload: () => void }) {
               <button
                 className="btn primary"
                 disabled={busy || missingOffers.length > 0}
-                onClick={async () => (await run(() => post(`/orders/${d.order.id}/quotes`, {}), t('quote.sent'))) && reload()}
+                onClick={async () => {
+                  const r = await run(() => post<{ notified: number }>(`/orders/${d.order.id}/quotes`, {}));
+                  if (!r) return;
+                  toast(r.notified > 0 ? t('quote.readyToSend') : t('quote.noContact'), r.notified === 0);
+                  reload();
+                }}
               >
                 {d.order.status === 'quote_sent' ? t('quote.resend') : t('quote.send')}
               </button>

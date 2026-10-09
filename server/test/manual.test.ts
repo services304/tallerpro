@@ -73,3 +73,24 @@ describe('modo manual: el dueño envía desde su celular (sin costo)', () => {
     expect((await pool.query(`SELECT status FROM notifications`)).rows).toEqual([{ status: 'sent' }]);
   });
 });
+
+describe('correo sin servicio configurado', () => {
+  it('en producción sin SMTP el correo queda para enviarlo a mano (no se pierde)', async () => {
+    const { config } = await import('../src/config.js');
+    const env = config.env;
+    (config as any).env = 'production';
+    try {
+      const c = await owner.post('/api/clients', { name: 'Ana Ruiz', phone: '514 555 0142', email: 'ana@gmail.com', lang: 'es', channels: ['email'] });
+      await owner.post('/api/visits', { client_id: c.json.id, address: '1 rue X, Laval', scheduled_start: new Date(Date.now() + 3 * 86400_000).toISOString() });
+      await flushAll();
+      const rows = (await pool.query(`SELECT channel, status FROM notifications`)).rows;
+      expect(rows).toEqual([{ channel: 'email', status: 'manual' }]);
+      const pending = (await owner.get('/api/notifications/manual')).json;
+      expect(pending[0]).toMatchObject({ channel: 'email', to_address: 'ana@gmail.com' });
+      expect(pending[0].subject).toBeTruthy();
+      expect((await owner.post(`/api/notifications/${pending[0].id}/manual`, { result: 'sent', channel: 'email' })).status).toBe(200);
+    } finally {
+      (config as any).env = env;
+    }
+  });
+});

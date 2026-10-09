@@ -59,8 +59,8 @@ export async function quoteRoutes(app: FastifyInstance) {
         );
       }
       if (o.status !== 'quote_sent') await transition(c, id, 'quote_sent', { kind: 'staff', userId: req.user!.id });
-      if (b.notify) await notifyOrder(c, id, 'quote_ready', { total: moneyFor(o.lang, totals.total_cents) });
-      return quote;
+      const notified = b.notify ? await notifyOrder(c, id, 'quote_ready', { total: moneyFor(o.lang, totals.total_cents) }) : 0;
+      return { ...quote!, notified };
     });
   });
 
