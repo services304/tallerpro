@@ -112,7 +112,7 @@ export async function visitRoutes(app: FastifyInstance) {
         scheduled_start: iso.optional(),
         duration_minutes: z.number().int().min(15).max(24 * 60).optional(),
         address: z.string().trim().min(1).max(400).optional(),
-        status: z.enum(['scheduled', 'in_progress', 'done', 'cancelled']).optional(),
+        status: z.enum(['requested', 'scheduled', 'in_progress', 'done', 'cancelled']).optional(),
         vehicle_id: z.string().uuid().nullable().optional(),
         visit_fee_cents: z.number().int().min(0).max(10_000_000).optional(),
         notes: z.string().max(2000).optional(),
@@ -135,6 +135,23 @@ export async function visitRoutes(app: FastifyInstance) {
       ],
     );
     if (moved && b.notify) await notifyVisit(pool, id, 'visit_scheduled');
+    return { ok: true };
+  });
+
+  /** Confirmar una cita pedida en línea: pasa a la agenda y se le avisa al cliente. */
+  app.post('/visits/:id/confirm', async (req) => {
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
+    const r = await one(`UPDATE visits SET status='scheduled' WHERE id=$1 AND status='requested' RETURNING id`, [id]);
+    if (!r) throw new AppError(409, 'validation.failed', { fields: 'status' });
+    await notifyVisit(pool, id, 'visit_scheduled');
+    return { ok: true };
+  });
+
+  /** Rechazar una solicitud (el dueño llama o escribe al cliente para proponer otra hora). */
+  app.post('/visits/:id/decline', async (req) => {
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
+    const r = await one(`UPDATE visits SET status='cancelled' WHERE id=$1 AND status='requested' RETURNING id`, [id]);
+    if (!r) throw new AppError(409, 'validation.failed', { fields: 'status' });
     return { ok: true };
   });
 

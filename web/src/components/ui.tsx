@@ -266,7 +266,7 @@ const statusTone: Record<string, string> = {
   delivered: 's-off', closed: 's-off', cancelled: 's-bad',
   issued: 's-wait', partial: 's-wait', paid: 's-ok', void: 's-off',
   sent: 's-ok', queued: 's-info', failed: 's-bad', skipped: 's-off',
-  scheduled: 's-info', on_the_way: 's-wait', in_progress: 's-ok', done: 's-off',
+  requested: 's-wait', scheduled: 's-info', on_the_way: 's-wait', in_progress: 's-ok', done: 's-off',
 };
 
 export function Status({ value, label }: { value: string; label: string }) {

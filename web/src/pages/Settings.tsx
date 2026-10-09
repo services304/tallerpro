@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { patch } from '../api';
-import { Check, Input, LoadError, Loading, MoneyInput, Select, TextArea, useAction, useLoad } from '../components/ui';
+import { Check, Input, LoadError, Loading, MoneyInput, Select, TextArea, useAction, useLoad, useToast } from '../components/ui';
 import { useI18n } from '../i18n';
 import { useSession } from '../session';
 import { StorageMeter } from '../components/StorageMeter';
@@ -38,6 +38,13 @@ export function Settings() {
       warranty_text: s.warranty_text,
       messaging_mode: s.messaging_mode,
       google_review_url: (s.google_review_url ?? '').trim(),
+      booking_enabled: s.booking_enabled,
+      booking_days: s.booking_days,
+      booking_start_hour: Number(s.booking_start_hour),
+      booking_end_hour: Number(s.booking_end_hour),
+      booking_slot_minutes: Number(s.booking_slot_minutes),
+      booking_min_notice_hours: Number(s.booking_min_notice_hours),
+      booking_max_days: Number(s.booking_max_days),
     };
     if (await run(() => patch('/settings', body), t('common.saved'))) {
       void refresh();
@@ -93,6 +100,7 @@ export function Settings() {
           ))}
         </div>
       </section>
+      <BookingSettings s={s} setS={setS} />
       <section className="section">
         <h2>{t('settings.reviews')}</h2>
         <p className="muted small">{t('settings.reviewsHelp')}</p>
@@ -124,5 +132,77 @@ export function Settings() {
         {t('common.save')}
       </button>
     </>
+  );
+}
+
+/** Reservas en línea: horario, duración y enlace para Facebook/Messenger. */
+function BookingSettings({ s, setS }: { s: any; setS: (v: any) => void }) {
+  const { t, lang } = useI18n();
+  const toast = useToast();
+  const link = `${window.location.origin}/reservar`;
+  const reply = t('bookset.replyText', { shop: s.shop_name, link });
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(t('bookset.copied'));
+    } catch {
+      /* el usuario puede copiarlo a mano */
+    }
+  };
+  const days = [1, 2, 3, 4, 5, 6, 7];
+  const dayName = (d: number) => new Intl.DateTimeFormat(lang === 'en' ? 'en-CA' : lang === 'fr' ? 'fr-CA' : 'es', { weekday: 'short' }).format(new Date(Date.UTC(2024, 0, d)));
+  const num = (k: string) => (e: { target: { value: string } }) => setS({ ...s, [k]: e.target.value });
+  return (
+    <section className="section">
+      <h2>{t('bookset.title')}</h2>
+      <Check label={t('bookset.enabled')} checked={Boolean(s.booking_enabled)} onChange={(booking_enabled) => setS({ ...s, booking_enabled })} />
+      <div className="panel pad stack">
+        <strong>{t('bookset.link')}</strong>
+        <code className="linkbox">{link}</code>
+        <div className="row">
+          <button className="btn small primary" type="button" onClick={() => copy(link)}>
+            {t('bookset.copyLink')}
+          </button>
+          <a className="btn small" href="/reservar" target="_blank" rel="noreferrer">
+            {t('bookset.open')}
+          </a>
+        </div>
+        <p className="muted small">{t('bookset.where')}</p>
+        <TextArea label={t('bookset.reply')} readOnly rows={3} value={reply} />
+        <button className="btn small" type="button" onClick={() => copy(reply)}>
+          {t('bookset.copyReply')}
+        </button>
+        <p className="muted small">{t('bookset.howReply')}</p>
+      </div>
+      <div className="stack">
+        <span className="muted small">{t('bookset.days')}</span>
+        <div className="chips times">
+          {days.map((d) => {
+            const on = (s.booking_days ?? []).includes(d);
+            return (
+              <button
+                key={d}
+                type="button"
+                className={`chip ${on ? 'on' : ''}`}
+                aria-pressed={on}
+                onClick={() => setS({ ...s, booking_days: on ? s.booking_days.filter((x: number) => x !== d) : [...(s.booking_days ?? []), d].sort() })}
+              >
+                {dayName(d)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="grid2">
+        <Input label={t('bookset.from')} type="number" min={0} max={23} value={s.booking_start_hour ?? 8} onChange={num('booking_start_hour')} />
+        <Input label={t('bookset.to')} type="number" min={1} max={24} value={s.booking_end_hour ?? 18} onChange={num('booking_end_hour')} />
+      </div>
+      <div className="grid3">
+        <Input label={t('bookset.slot')} type="number" min={15} max={480} step={15} value={s.booking_slot_minutes ?? 90} onChange={num('booking_slot_minutes')} />
+        <Input label={t('bookset.notice')} type="number" min={0} max={336} value={s.booking_min_notice_hours ?? 12} onChange={num('booking_min_notice_hours')} />
+        <Input label={t('bookset.maxDays')} type="number" min={1} max={120} value={s.booking_max_days ?? 21} onChange={num('booking_max_days')} />
+      </div>
+      <p className="muted small">{t('bookset.help')}</p>
+    </section>
   );
 }

@@ -1,3 +1,4 @@
+import { BookingActions } from '../components/BookingActions';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { get, patch, post } from '../api';
@@ -177,7 +178,14 @@ export function Agenda() {
                     {[t(`agenda.purpose.${v.purpose}` as Key), vehicleName(v), v.visit_fee_cents > 0 ? f.money(v.visit_fee_cents) : ''].filter(Boolean).join(' — ')}
                   </p>
                   <p className="small">{v.address}</p>
-                  <div className="row">
+                  {v.status === 'requested' && (
+                    <>
+                      {v.notes && <p className="small">«{v.notes}»</p>}
+                      <p className="muted small">{t('booking.fromOnline')}</p>
+                      <BookingActions visit={v} onDone={() => void reload()} />
+                    </>
+                  )}
+                  {v.status !== 'requested' && <div className="row">
                     {v.order_id ? (
                       <Link className="btn small" to={`/orders/${v.order_id}`}>
                         {t('today.openOrder', { n: v.order_number })}
@@ -202,7 +210,7 @@ export function Agenda() {
                         {t('agenda.reschedule')}
                       </button>
                     )}
-                  </div>
+                  </div>}
                 </div>
               </article>
             ))}

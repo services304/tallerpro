@@ -51,3 +51,21 @@ export function localDayRange(d: Date): { start: Date; end: Date } {
   while (localParts(end).h !== 0) end.setTime(end.getTime() + (localParts(end).h > 12 ? 1 : -1) * 60 * 60_000);
   return { start, end };
 }
+
+/** Instante UTC de una hora local (America/Toronto); maneja cambios de hora. */
+export function localToUtc(y: number, m: number, day: number, h: number, min = 0): Date {
+  let guess = new Date(Date.UTC(y, m - 1, day, h, min));
+  for (let i = 0; i < 3; i++) {
+    const p = localParts(guess);
+    const diff = (Date.UTC(p.y, p.m - 1, p.day, p.h, p.min) - Date.UTC(y, m - 1, day, h, min)) / 60_000;
+    if (diff === 0) break;
+    guess = new Date(guess.getTime() - diff * 60_000);
+  }
+  return guess;
+}
+
+/** Día de la semana local: 1 = lunes … 7 = domingo. */
+export function localWeekday(y: number, m: number, day: number): number {
+  const w = new Date(Date.UTC(y, m - 1, day)).getUTCDay();
+  return w === 0 ? 7 : w;
+}

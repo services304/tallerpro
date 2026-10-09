@@ -1,3 +1,4 @@
+import { BookingActions } from '../components/BookingActions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { post } from '../api';
@@ -118,6 +119,28 @@ export function Today() {
             <span>{t('today.receivable')}</span>
           </div>
         </div>
+      )}
+
+      {d.bookings?.length > 0 && (
+        <section className="section">
+          <h2>{t('booking.pending', { n: d.bookings.length })}</h2>
+          <div className="stack">
+            {d.bookings.map((b: any) => (
+              <article className="panel pad stack" key={b.id}>
+                <div className="item-top">
+                  <strong>{b.client_name}</strong>
+                  <span className="status s-wait">{t('agenda.status.requested')}</span>
+                </div>
+                <p className="small">
+                  {f.dayLong(b.scheduled_start)} — {f.time(b.scheduled_start)}
+                </p>
+                <p className="muted small">{[vehicleName(b), b.address].filter(Boolean).join(' — ')}</p>
+                {b.notes && <p className="small">«{b.notes}»</p>}
+                <BookingActions visit={b} onDone={() => void reload()} />
+              </article>
+            ))}
+          </div>
+        </section>
       )}
 
       {d.storage && (

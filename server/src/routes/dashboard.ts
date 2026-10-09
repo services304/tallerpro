@@ -56,6 +56,12 @@ export async function dashboardRoutes(app: FastifyInstance) {
     // Aviso de espacio cuando pasa del 80 % (solo si hay límite conocido).
     const st = await storageUsage();
     const storage = st.percent !== null && st.percent >= 80 ? { percent: st.percent, photos_left: st.photos_left } : null;
-    return { storage, visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money, lowStock };
+    // Citas pedidas en línea que esperan confirmación.
+    const bookings = await q(
+      `SELECT v.id, v.scheduled_start, v.address, v.notes, c.name AS client_name, c.phone AS client_phone, ve.make, ve.model, ve.year
+         FROM visits v JOIN clients c ON c.id=v.client_id LEFT JOIN vehicles ve ON ve.id=v.vehicle_id
+        WHERE v.status='requested' ORDER BY v.scheduled_start LIMIT 20`,
+    );
+    return { bookings, storage, visitsToday, byStatus, readyOld, pendingQuotes, failedNotifications: failed!.n, manualPending: manual!.n, messages, money, lowStock };
   });
 }

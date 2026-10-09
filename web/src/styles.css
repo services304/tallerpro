@@ -347,3 +347,16 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 /* Espacio usado */
 .meter { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .meter > span { display: block; height: 100%; border-radius: 999px; }
+
+/* Página de reservas */
+.booking { max-width: 640px; margin: 0 auto; display: grid; gap: 16px; padding-bottom: 48px; }
+.booking-head { align-items: center; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.chips.times { flex-wrap: wrap; overflow: visible; }
+.chip { flex: none; min-height: var(--tap); padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; text-transform: capitalize; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #111214; font-weight: 600; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.btn.big { min-height: 56px; font-size: 18px; }
+.booking-done h1 { margin: 0; }
+.linkbox { display: block; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); word-break: break-all; font-size: 14px; }
+@media (max-width: 520px) { .booking .grid3 { grid-template-columns: 1fr 1fr; } }

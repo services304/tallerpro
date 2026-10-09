@@ -1,3 +1,4 @@
+import { Booking } from './pages/Booking';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { get, onAuthLost, onVersionMismatch, patch } from './api';
@@ -165,6 +166,9 @@ function Root() {
             <Route path="/p/:token" element={<Portal />} />
             <Route path="/portal" element={<PortalLogin />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/reservar" element={<Booking />} />
+            <Route path="/reserver" element={<Booking />} />
+            <Route path="/book" element={<Booking />} />
             <Route path="/reset" element={<Reset />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot" element={<Forgot />} />

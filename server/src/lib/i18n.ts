@@ -27,6 +27,8 @@ const messages: Record<Lang, Dict> = {
     'auth.wrong_current': 'La contraseña actual no es correcta.',
     'auth.setup_done': 'La cuenta del dueño ya fue creada.',
     'samples.exist': 'Los clientes de ejemplo ya existen.',
+    'booking.disabled': 'Las reservas en línea no están disponibles.',
+    'booking.slot_taken': 'Ese horario ya no está disponible. Elige otro.',
     'validation.failed': 'Revisa los datos: {fields}',
     'not_found': 'No encontramos lo que buscas.',
     'client.duplicate': 'Ya existe un cliente con ese teléfono o correo: {name}.',
@@ -64,6 +66,8 @@ const messages: Record<Lang, Dict> = {
     'auth.wrong_current': 'The current password is incorrect.',
     'auth.setup_done': "The owner's account has already been created.",
     'samples.exist': 'The sample clients already exist.',
+    'booking.disabled': 'Online booking is not available.',
+    'booking.slot_taken': 'That time is no longer available. Please choose another.',
     'validation.failed': 'Please check: {fields}',
     'not_found': "We couldn't find what you're looking for.",
     'client.duplicate': 'A client with that phone or email already exists: {name}.',
@@ -101,6 +105,8 @@ const messages: Record<Lang, Dict> = {
     'auth.wrong_current': "Le mot de passe actuel n'est pas correct.",
     'auth.setup_done': 'Le compte du propriétaire a déjà été créé.',
     'samples.exist': 'Les clients exemples existent déjà.',
+    'booking.disabled': 'La réservation en ligne n’est pas disponible.',
+    'booking.slot_taken': 'Ce créneau n’est plus disponible. Choisissez-en un autre.',
     'validation.failed': 'Vérifiez : {fields}',
     'not_found': 'Introuvable.',
     'client.duplicate': 'Un client avec ce téléphone ou ce courriel existe déjà : {name}.',
@@ -201,6 +207,7 @@ export const NOTIFICATION_EVENTS = [
   'delivered',
   'payment_reminder',
   'portal_code',
+  'booking_received',
 ] as const;
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
 
@@ -218,6 +225,7 @@ export const defaultTemplates: Record<Lang, Record<NotificationEvent, { subject:
     delivered: { subject: 'Merci! Votre facture — {order}', body: 'Merci {name}! Votre facture et la garantie sont ici : {link}{review}' },
     payment_reminder: { subject: 'Rappel de paiement — {order}', body: 'Bonjour {name}, un solde de {total} reste à payer pour {order}. Détails : {link}' },
     portal_code: { subject: 'Votre code — {shop}', body: 'Votre code {shop} : {code}. Il expire dans 10 minutes.' },
+    booking_received: { subject: 'Demande de rendez-vous reçue — {shop}', body: 'Bonjour {name}, nous avons bien reçu votre demande pour le {date} à {time} au {address}. Nous vous confirmons très bientôt. — {shop}' },
   },
   en: {
     visit_scheduled: { subject: 'Visit confirmed — {shop}', body: 'Hi {name}, your visit is confirmed for {date} at {time} at {address}. Visit and diagnosis fee: {fee}. — {shop}' },
@@ -232,6 +240,7 @@ export const defaultTemplates: Record<Lang, Record<NotificationEvent, { subject:
     delivered: { subject: 'Thank you! Your invoice — {order}', body: 'Thank you {name}! Your invoice and warranty are here: {link}{review}' },
     payment_reminder: { subject: 'Payment reminder — {order}', body: 'Hi {name}, a balance of {total} is still due for {order}. Details: {link}' },
     portal_code: { subject: 'Your code — {shop}', body: 'Your {shop} code: {code}. It expires in 10 minutes.' },
+    booking_received: { subject: 'Appointment request received — {shop}', body: "Hi {name}, we received your request for {date} at {time} at {address}. We'll confirm very soon. — {shop}" },
   },
   es: {
     visit_scheduled: { subject: 'Visita confirmada — {shop}', body: 'Hola {name}, tu visita está confirmada el {date} a las {time} en {address}. Cargo de visita y diagnóstico: {fee}. — {shop}' },
@@ -246,6 +255,7 @@ export const defaultTemplates: Record<Lang, Record<NotificationEvent, { subject:
     delivered: { subject: '¡Gracias! Tu factura — {order}', body: '¡Gracias {name}! Tu factura y la garantía están aquí: {link}{review}' },
     payment_reminder: { subject: 'Recordatorio de pago — {order}', body: 'Hola {name}, queda un saldo de {total} por pagar de la orden {order}. Detalles: {link}' },
     portal_code: { subject: 'Tu código — {shop}', body: 'Tu código de {shop}: {code}. Vence en 10 minutos.' },
+    booking_received: { subject: 'Recibimos tu solicitud — {shop}', body: 'Hola {name}, recibimos tu solicitud para el {date} a las {time} en {address}. Te confirmamos muy pronto. — {shop}' },
   },
 };
 
