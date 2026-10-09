@@ -1,3 +1,4 @@
+import { checkEmail, formatLocal7, OTHER_CA_AREA_CODES, QC_AREA_CODES, validLocal7 } from '../lib/contact';
 import { VehiclePicker } from '../components/VehiclePicker';
 import { LocateButton, type Located } from '../components/LocateButton';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,7 +27,7 @@ export function Booking() {
   const toggleJob = (id: string) => setJobs((j) => (j.includes(id) ? j.filter((x) => x !== id) : [...j, id]));
   const [day, setDay] = useState('');
   const [start, setStart] = useState('');
-  const [form, setForm] = useState({ name: '', phone: '', email: '', channel: 'sms' as 'sms' | 'whatsapp' | 'email', address: '', make: '', model: '', year: '', message: '', website: '' });
+  const [form, setForm] = useState({ name: '', area: '514', local: '', email: '', channel: 'sms' as 'sms' | 'whatsapp' | 'email', address: '', make: '', model: '', year: '', message: '', website: '' });
   const [consent, setConsent] = useState(false);
   const [location, setLocation] = useState<Located | null>(null);
   const [mode, setMode] = useState<'home' | 'dropoff'>('home');
@@ -42,6 +43,7 @@ export function Booking() {
   const [triedSend, setTriedSend] = useState(false);
   const daySlots = useMemo(() => days.find((d) => d.date === day)?.slots ?? [], [days, day]);
   const types = (info.data?.work_types ?? []) as any[];
+  const phoneE164 = `+1${form.area}${form.local.replace(/\D/g, '')}`;
   // Qué falta, en el orden de la página (para marcarlo en rojo y llevar al cliente al primero).
   const errors: Record<string, string> = {};
   if (!knows) errors.what = t('book.errWhat');
@@ -49,8 +51,10 @@ export function Booking() {
   if (!day) errors.when = t('book.needDay');
   else if (!start) errors.when = t('book.needTime');
   if (form.name.trim().length < 2) errors.name = t('book.errName');
-  if (form.phone.replace(/\D/g, '').length < 10) errors.phone = t('book.errPhone');
-  if (form.channel === 'email' ? !/^\S+@\S+\.\S+$/.test(form.email.trim()) : form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = t('book.errEmail');
+  if (!validLocal7(form.local)) errors.phone = t('book.errPhone7');
+  const emailCheck = form.channel === 'email' ? checkEmail(form.email) : null;
+  if (emailCheck?.kind === 'invalid') errors.email = t('book.errEmail');
+  if (emailCheck?.kind === 'typo') errors.email = t('book.errEmailTypo', { s: emailCheck.suggestion });
   if (mode === 'home' && form.address.trim().length < 5 && !location) errors.address = t('book.errAddress');
   if (!form.make.trim()) errors.make = t('book.errMake');
   if (!form.model.trim()) errors.model = t('book.errModel');
@@ -75,8 +79,8 @@ export function Booking() {
         work_type_ids: jobs,
         start,
         name: form.name,
-        phone: form.phone,
-        email: form.email,
+        phone: phoneE164,
+        email: form.channel === 'email' ? form.email.trim() : '',
         lang,
         channel: form.channel,
         address: form.address,
@@ -252,9 +256,39 @@ export function Booking() {
       <section className="section">
         <h2>3. {t('book.you')}</h2>
         <Input id="f-name" label={t('book.name')} autoComplete="name" value={form.name} onChange={set('name')} error={show('name')} />
-        <div className="grid2">
-          <Input id="f-phone" label={t('common.phone')} type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={set('phone')} error={show('phone')} />
-          <Input label={`${t('common.email')}${form.channel === 'email' ? '' : ` (${t('common.optional')})`}`} type="email" autoComplete="email" value={form.email} onChange={set('email')} id="f-email" error={show('email')} />
+        <div className={`phone-row${show('phone') ? ' field-error' : ''}`}>
+          <span className="phone-label">{t('common.phone')}</span>
+          <div className="phone-inputs">
+            <span className="phone-cc" aria-label={t('book.canada')}>🇨🇦 +1</span>
+            <select aria-label={t('book.areaCode')} value={form.area} onChange={set('area')}>
+              <optgroup label="Québec">
+                {QC_AREA_CODES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Canada">
+                {OTHER_CA_AREA_CODES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            <input
+              id="f-phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-local"
+              placeholder="555-0142"
+              aria-label={t('book.local7')}
+              aria-invalid={show('phone') ? true : undefined}
+              value={form.local}
+              onChange={(e) => setForm((f) => ({ ...f, local: formatLocal7(e.target.value) }))}
+            />
+          </div>
+          {show('phone') ? <small className="error-msg" role="alert">{show('phone')}</small> : <small className="hint">{t('book.phoneHint')}</small>}
         </div>
         <Seg
           label={t('book.contactBy')}
@@ -266,6 +300,16 @@ export function Booking() {
             { value: 'email', label: t('common.email') },
           ]}
         />
+        {form.channel === 'email' && (
+          <>
+            <Input id="f-email" label={t('common.email')} type="email" autoComplete="email" inputMode="email" autoCapitalize="none" value={form.email} onChange={set('email')} error={show('email')} placeholder="nombre@gmail.com" />
+            {emailCheck?.kind === 'typo' && (
+              <button type="button" className="btn small" onClick={() => setForm((f) => ({ ...f, email: emailCheck.suggestion }))}>
+                {t('book.useSuggestion', { s: emailCheck.suggestion })}
+              </button>
+            )}
+          </>
+        )}
         {info.data.dropoff_enabled && (
           <div className="stack" style={{ gap: 6 }}>
             <strong>{t('book.where')}</strong>
@@ -354,7 +398,13 @@ export function Booking() {
               <dd>{[form.make, form.model, form.year].filter(Boolean).join(' ')}</dd>
               <dt>{t('book.you')}</dt>
               <dd>
-                {form.name} — {form.phone}
+                {form.name} — +1 {form.area} {form.local}
+                {form.channel === 'email' && (
+                  <>
+                    <br />
+                    {form.email}
+                  </>
+                )}
               </dd>
             </dl>
             <p className="muted small">{mode === 'home' ? t('book.confirmHelp', { fee: f.money(info.data.visit_fee_cents) }) : t('book.confirmHelpDropoff', { fee: f.money(info.data.dropoff_fee_cents) })}</p>

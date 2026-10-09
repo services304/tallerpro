@@ -404,3 +404,10 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .error-msg { color: var(--danger); font-size: 13px; }
 .block-error { border: 2px solid var(--danger); border-radius: var(--radius); padding: 10px; }
 .error-title { color: var(--danger); }
+
+/* Teléfono canadiense: +1 · código de área · 7 dígitos */
+.phone-row { display: grid; gap: 6px; }
+.phone-label { font-size: 14px; color: var(--muted); }
+.field-error .phone-label { color: var(--danger); }
+.phone-inputs { display: grid; grid-template-columns: auto 92px 1fr; gap: 8px; align-items: center; }
+.phone-cc { padding: 0 6px; font-weight: 600; white-space: nowrap; }

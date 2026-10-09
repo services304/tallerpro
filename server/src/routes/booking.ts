@@ -114,7 +114,8 @@ export async function bookingRoutes(app: FastifyInstance) {
     const b = parse(bookingInput, req.body);
     if (b.website) throw new AppError(400, 'validation.failed', { fields: 'website' });
     const phone = normalizePhone(b.phone);
-    if (!phone) throw new AppError(400, 'validation.failed', { fields: 'phone' });
+    // Teléfono canadiense: +1, código de área y 7 dígitos.
+    if (!phone || !/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(phone)) throw new AppError(400, 'validation.failed', { fields: 'phone' });
     if (b.channel === 'email' && !b.email) throw new AppError(400, 'validation.failed', { fields: 'email' });
     const home = b.service_mode === 'home';
     // A domicilio: hace falta una dirección escrita o la ubicación GPS (o ambas). Si trae el vehículo, no.
