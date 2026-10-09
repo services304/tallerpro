@@ -39,3 +39,25 @@ export async function reverseGeocode(lat: number, lng: number, lang: Lang, fetch
 export function coordsLabel(lat: number, lng: number) {
   return `GPS ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
+
+let lastForward = 0;
+/** Coordenadas a partir de una dirección (Quebec/Canadá). Máximo 1 consulta por segundo (política de OpenStreetMap). */
+export async function forwardGeocode(address: string, fetcher: typeof fetch = fetch): Promise<{ lat: number; lng: number } | null> {
+  const wait = 1100 - (Date.now() - lastForward);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastForward = Date.now();
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ca&q=${encodeURIComponent(address)}`;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetcher(url, { headers: { 'User-Agent': `TallerPro/${config.version} (${config.publicUrl})` }, signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const j = (await r.json()) as { lat: string; lon: string }[];
+    if (!Array.isArray(j) || !j[0]) return null;
+    const lat = Number(j[0].lat), lng = Number(j[0].lon);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  } catch {
+    return null;
+  }
+}

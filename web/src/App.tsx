@@ -1,3 +1,4 @@
+import { WorkMap } from './pages/WorkMap';
 import { Locations } from './pages/Locations';
 import { geoStatus, onGeoStatus, startGeoTracking, stopGeoTracking } from './geo';
 import { Booking } from './pages/Booking';
@@ -168,6 +169,7 @@ function Private() {
         <Route path="/more/suppliers" element={<Suppliers />} />
         <Route path="/more/inventory" element={<Inventory />} />
         <Route path="/more/locations" element={<Locations />} />
+        <Route path="/more/map" element={<WorkMap />} />
         <Route path="/more/templates" element={<Templates />} />
         <Route path="/more/import" element={<Import />} />
         <Route path="/more/notifications" element={<Notifications />} />

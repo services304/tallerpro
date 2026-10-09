@@ -28,6 +28,7 @@ import { sampleRoutes } from './routes/samples.js';
 import { storageRoutes } from './routes/storage.js';
 import { bookingRoutes } from './routes/booking.js';
 import { locationRoutes, recordActionLocation } from './routes/locations.js';
+import { heatmapRoutes } from './routes/heatmap.js';
 
 export interface SessionUser {
   id: string;
@@ -104,7 +105,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     reply.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(self)');
     reply.header(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; " +
+      "default-src 'self'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; " +
         "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     );
     if (config.cookieSecure) reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -188,6 +189,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(storageRoutes, { prefix: '/api' });
   await app.register(bookingRoutes, { prefix: '/api' });
   await app.register(locationRoutes, { prefix: '/api' });
+  await app.register(heatmapRoutes, { prefix: '/api' });
 
   // La app web compilada (PWA). Cualquier ruta que no sea /api devuelve index.html.
   if (existsSync(config.webDist)) {

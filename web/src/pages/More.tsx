@@ -11,6 +11,7 @@ const ADMIN: [string, Key][] = [
   ['/more/locations', 'more.locations'],
 ];
 const ALL: [string, Key][] = [
+  ['/more/map', 'more.map'],
   ['/more/inventory', 'more.inventory'],
   ['/more/suppliers', 'more.suppliers'],
   ['/more/invoices', 'more.invoices'],

@@ -361,3 +361,14 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .linkbox { display: block; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); word-break: break-all; font-size: 14px; }
 @media (max-width: 520px) { .booking .grid3 { grid-template-columns: 1fr 1fr; } }
 .linklike { background: none; border: 0; padding: 0; color: var(--accent-text, var(--accent)); text-decoration: underline; font: inherit; cursor: pointer; }
+
+/* Mapa de trabajo */
+.workmap { height: 58vh; min-height: 320px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); z-index: 0; }
+.workmap .leaflet-control-attribution { font-size: 10px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .workmap .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); } }
+:root[data-theme="dark"] .workmap .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
+.heat-legend { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.heat-legend i { flex: 1; height: 8px; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #22c55e, #f5b314, #ef4444); }
+.leaflet-tooltip.route-num { background: transparent; border: 0; box-shadow: none; color: #111214; font-weight: 700; font-size: 12px; padding: 0; }
+.leaflet-tooltip.route-num::before { display: none; }
+.route-list { padding: 0; }

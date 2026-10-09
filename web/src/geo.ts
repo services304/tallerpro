@@ -72,3 +72,8 @@ export function stopGeoTracking() {
   document.removeEventListener('visibilitychange', onVisible);
   setStatus('off');
 }
+
+/** Última posición conocida (para planificar la ruta desde donde estás). */
+export function lastFix() {
+  return last && Date.now() - last.at < 30 * 60_000 ? { lat: last.lat, lng: last.lng } : null;
+}
