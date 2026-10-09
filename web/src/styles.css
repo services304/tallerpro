@@ -372,3 +372,28 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .leaflet-tooltip.route-num { background: transparent; border: 0; box-shadow: none; color: #111214; font-weight: 700; font-size: 12px; padding: 0; }
 .leaflet-tooltip.route-num::before { display: none; }
 .route-list { padding: 0; }
+
+/* Reservas: trabajos para marcar */
+.jobcat { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--surface); }
+.jobcat summary { cursor: pointer; font-weight: 600; display: flex; gap: 8px; align-items: center; min-height: 32px; }
+.jobcat .chips { margin-top: 10px; }
+.jobcat .chip { text-transform: none; text-align: left; white-space: normal; max-width: 100%; flex: 0 1 auto; }
+.booking > .section > .chip { justify-self: start; text-transform: none; }
+
+.step-label { margin: 4px 0 0; }
+.req { color: var(--danger); }
+.confirm-banner { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--radius); background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+.confirm-banner > span { font-size: 22px; }
+.confirm-banner strong { color: inherit; }
+.summary { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
+.summary dt { color: var(--muted); font-size: 14px; }
+.summary dd { margin: 0; }
+
+/* Vehículo: marca, modelo, año */
+.vpicker { display: grid; gap: 12px; grid-template-columns: 1fr 1fr 0.8fr; align-items: start; }
+@media (max-width: 560px) { .vpicker { grid-template-columns: 1fr 1fr; } .vpicker > :last-child { grid-column: 1 / -1; } }
+/* A domicilio o traer el vehículo */
+.mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode { display: grid; gap: 4px; text-align: left; padding: 12px; border-radius: var(--radius); border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.mode span { font-size: 13px; color: var(--muted); }
+.mode.on { border-color: var(--accent); background: var(--surface-2); }

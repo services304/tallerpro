@@ -2,6 +2,7 @@ import { type Db, one, pool, q, tx } from '../db.js';
 import { normalizePhone } from '../lib/phone.js';
 import { SAMPLE_CLIENTS, STARTER_INVENTORY } from '../lib/sampleData.js';
 import { moveStock } from './inventory.js';
+import { addSuggestedWork } from '../lib/workCatalog.js';
 
 /** Crea los clientes de ejemplo con su vehículo. Devuelve cuántos creó (0 si ya existían). */
 export async function createSampleClients(c: Db) {
@@ -54,6 +55,22 @@ export const SHOP_GOOGLE_PROFILE = 'https://www.google.com/search?kgmid=/g/11zkr
  * Carga inicial en la instalación de prueba (DEMO_MODE): una sola vez, cuando el dueño ya creó su cuenta,
  * agrega los clientes de ejemplo y el inventario básico.
  */
+/**
+ * Cuentas creadas antes de la lista de trabajos sugeridos: se carga una vez (no toca precios ya cambiados).
+ * Corre en toda instalación.
+ */
+export async function ensureWorkCatalog() {
+  const s = await one<{ seeds_done: string[] }>('SELECT seeds_done FROM settings WHERE id=1', [], pool);
+  if (!s || s.seeds_done.includes('work-catalog-v1')) return null;
+  const users = await one<{ n: number }>('SELECT count(*)::int AS n FROM users', [], pool);
+  if (!users || users.n === 0) return null; // la cuenta nueva la carga al crearse
+  return tx(async (c) => {
+    const added = await addSuggestedWork(c as any);
+    await q(`UPDATE settings SET seeds_done = array_append(seeds_done, 'work-catalog-v1') WHERE id=1`, [], c);
+    return added;
+  });
+}
+
 export async function runStartupSeeds() {
   // Enlace de reseñas: se pone una sola vez y solo si el dueño no puso otro.
   const r = await one<{ seeds_done: string[] }>('SELECT seeds_done FROM settings WHERE id=1', [], pool);

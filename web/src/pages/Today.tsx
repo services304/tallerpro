@@ -132,6 +132,7 @@ export function Today() {
                   <strong>{b.client_name}</strong>
                   <span className="status s-wait">{t('agenda.status.requested')}</span>
                 </div>
+                {b.service_mode === 'dropoff' && <span className="status s-info">{t('agenda.dropoff')}</span>}
                 <p className="small">
                   {f.dayLong(b.scheduled_start)} — {f.time(b.scheduled_start)}
                 </p>

@@ -1,3 +1,4 @@
+import { VehiclePicker } from './VehiclePicker';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, get, patch, post } from '../api';
 import { useI18n, type Key, type Lang } from '../i18n';
@@ -247,10 +248,8 @@ export function VehicleFields({ v, onChange }: { v: VehicleDraft; onChange: (v: 
         />
       )}
       {info && <p className="notice">{info}</p>}
+      <VehiclePicker key={`${v.vin}`} make={v.make} model={v.model} year={v.year} onChange={(x) => onChange({ ...v, ...x })} />
       <div className="grid2">
-        <Input label={t('intake.make')} value={v.make} onChange={set('make')} />
-        <Input label={t('intake.model')} value={v.model} onChange={set('model')} />
-        <Input label={t('intake.year')} inputMode="numeric" value={v.year} onChange={set('year')} />
         <Input label={t('intake.plate')} value={v.plate} autoCapitalize="characters" onChange={set('plate')} />
         <Input label={t('intake.color')} value={v.color} onChange={set('color')} />
       </div>

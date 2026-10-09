@@ -11,6 +11,7 @@ import { coordsLabel, reverseGeocode } from '../lib/geocode.js';
 import { fmtDate, fmtTime, localParts, localToUtc, localWeekday } from '../lib/time.js';
 
 type BookingSettings = {
+  shop_address: string; dropoff_enabled: boolean; dropoff_fee_cents: number;
   shop_name: string; shop_phone: string; shop_email: string; visit_fee_cents: number; default_lang: Lang; messaging_mode: 'auto' | 'manual';
   booking_enabled: boolean; booking_days: number[]; booking_start_hour: number; booking_end_hour: number;
   booking_slot_minutes: number; booking_min_notice_hours: number; booking_max_days: number;
@@ -53,6 +54,7 @@ export async function freeSlots(db: Db, s: BookingSettings, now = new Date()) {
 
 const bookingInput = z.object({
   work_type_id: z.string().uuid().nullable().optional(),
+  work_type_ids: z.array(z.string().uuid()).max(12).default([]),
   start: z.string().datetime({ offset: true }),
   name: z.string().trim().min(2).max(160),
   phone: z.string().trim().min(7).max(40),
@@ -66,6 +68,7 @@ const bookingInput = z.object({
   year: z.number().int().min(1950).max(2100).nullable().optional(),
   message: z.string().trim().max(1000).default(''),
   consent: z.literal(true),
+  service_mode: z.enum(['home', 'dropoff']).default('home'),
   website: z.string().max(0).optional(), // trampa para robots: debe quedar vacío
 });
 
@@ -81,6 +84,9 @@ export async function bookingRoutes(app: FastifyInstance) {
       shop_name: s.shop_name,
       shop_phone: s.shop_phone,
       visit_fee_cents: s.visit_fee_cents,
+      dropoff_enabled: s.dropoff_enabled,
+      dropoff_fee_cents: s.dropoff_fee_cents,
+      shop_address: s.dropoff_enabled ? s.shop_address : '',
       default_lang: s.default_lang,
       slot_minutes: s.booking_slot_minutes,
       work_types: types,
@@ -108,16 +114,20 @@ export async function bookingRoutes(app: FastifyInstance) {
     const phone = normalizePhone(b.phone);
     if (!phone) throw new AppError(400, 'validation.failed', { fields: 'phone' });
     if (b.channel === 'email' && !b.email) throw new AppError(400, 'validation.failed', { fields: 'email' });
-    // Taller móvil: hace falta una dirección escrita o la ubicación GPS (o ambas).
-    if (b.address.length < 5 && !b.location) throw new AppError(400, 'validation.failed', { fields: 'address' });
-    const address = b.address.length >= 5 ? b.address : coordsLabel(b.location!.lat, b.location!.lng);
-    const loc = b.location ?? null;
+    const home = b.service_mode === 'home';
+    // A domicilio: hace falta una dirección escrita o la ubicación GPS (o ambas). Si trae el vehículo, no.
+    if (home && b.address.length < 5 && !b.location) throw new AppError(400, 'validation.failed', { fields: 'address' });
+    const loc = home ? b.location ?? null : null;
+    const clientAddress = home ? (b.address.length >= 5 ? b.address : coordsLabel(loc!.lat, loc!.lng)) : b.address;
 
     const result = await tx(async (c) => {
       // Una reserva a la vez, para que dos clientes no tomen el mismo horario.
       await c.query('SELECT pg_advisory_xact_lock(7311)');
       const s = await bookingSettings(c);
       if (!s.booking_enabled) throw new AppError(403, 'booking.disabled');
+      if (!home && !s.dropoff_enabled) throw new AppError(400, 'validation.failed', { fields: 'service_mode' });
+      const address = home ? clientAddress : s.shop_address || 'Atelier / taller (le client apporte le véhicule)';
+      const fee = home ? s.visit_fee_cents : s.dropoff_fee_cents;
       const wanted = new Date(b.start).getTime();
       const free = (await freeSlots(c, s)).some((d) => d.slots.some((x) => new Date(x).getTime() === wanted));
       if (!free) throw new AppError(409, 'booking.slot_taken');
@@ -132,13 +142,13 @@ export async function bookingRoutes(app: FastifyInstance) {
         await q(
           `UPDATE clients SET address = CASE WHEN address='' THEN $2 ELSE address END, email = COALESCE(email, $3),
                   lat = COALESCE($4, lat), lng = COALESCE($5, lng), updated_at=now() WHERE id=$1`,
-          [client.id, address, b.email ?? null, loc?.lat ?? null, loc?.lng ?? null],
+          [client.id, clientAddress, b.email ?? null, loc?.lat ?? null, loc?.lng ?? null],
           c,
         );
       } else {
         client = await one(
           `INSERT INTO clients (name, phone, email, address, lang, channels, notes_internal, lat, lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, address, email`,
-          [b.name, phone, b.email ?? null, address, b.lang, [b.channel], 'Reservó en línea.', loc?.lat ?? null, loc?.lng ?? null],
+          [b.name, phone, b.email ?? null, clientAddress, b.lang, [b.channel], home ? 'Reservó en línea.' : 'Reservó en línea (trae el vehículo).', loc?.lat ?? null, loc?.lng ?? null],
           c,
         );
         await q(`INSERT INTO consents (client_id, kind, granted, source) VALUES ($1,'service',true,'booking')`, [client!.id], c);
@@ -154,17 +164,21 @@ export async function bookingRoutes(app: FastifyInstance) {
         vehicle = await one('INSERT INTO vehicles (make, model, year) VALUES ($1,$2,$3) RETURNING id', [b.make, b.model, b.year ?? null], c);
         await q('INSERT INTO vehicle_owners (vehicle_id, client_id) VALUES ($1,$2)', [vehicle!.id, client!.id], c);
       }
-      const wt = b.work_type_id
-        ? await one<{ id: string; names: Record<string, string>; name: string }>('SELECT id, names, name FROM work_types WHERE id=$1 AND active', [b.work_type_id], c)
-        : null;
-      const job = wt ? wt.names.es || wt.names.fr || wt.name : '';
+      // El cliente puede marcar varios trabajos (o ninguno: «no estoy seguro»).
+      const ids = [...new Set([...(b.work_type_id ? [b.work_type_id] : []), ...b.work_type_ids])];
+      const wts = ids.length
+        ? await q<{ id: string; names: Record<string, string>; name: string }>('SELECT id, names, name FROM work_types WHERE id = ANY($1) AND active', [ids], c)
+        : [];
+      const ordered = ids.map((id) => wts.find((w) => w.id === id)).filter(Boolean) as typeof wts;
+      const wt = ordered[0] ?? null;
+      const job = ordered.map((w) => w.names.es || w.names.fr || w.name).join(', ');
       const start = new Date(b.start);
       const end = new Date(start.getTime() + s.booking_slot_minutes * 60_000);
       const v = await one<{ id: string }>(
-        `INSERT INTO visits (client_id, vehicle_id, purpose, address, scheduled_start, scheduled_end, visit_fee_cents, notes, status, source, work_type_id, client_message, lat, lng, location_accuracy_m)
-         VALUES ($1,$2,'diagnosis',$3,$4,$5,$6,$7,'requested','online',$8,$9,$10,$11,$12) RETURNING id`,
-        [client!.id, vehicle!.id, address, start, end, s.visit_fee_cents, [job, b.message].filter(Boolean).join(' — '), wt?.id ?? null, b.message,
-          loc?.lat ?? null, loc?.lng ?? null, loc?.accuracy != null ? Math.round(loc.accuracy) : null],
+        `INSERT INTO visits (client_id, vehicle_id, purpose, address, scheduled_start, scheduled_end, visit_fee_cents, notes, status, source, work_type_id, client_message, lat, lng, location_accuracy_m, service_mode)
+         VALUES ($1,$2,'diagnosis',$3,$4,$5,$6,$7,'requested','online',$8,$9,$10,$11,$12,$13) RETURNING id`,
+        [client!.id, vehicle!.id, address, start, end, fee, [job, b.message].filter(Boolean).join(' — '), wt?.id ?? null, b.message,
+          loc?.lat ?? null, loc?.lng ?? null, loc?.accuracy != null ? Math.round(loc.accuracy) : null, b.service_mode],
         c,
       );
       // Al cliente: «recibimos tu solicitud» (solo si los mensajes salen solos; en modo manual lo ve en pantalla).
@@ -174,7 +188,7 @@ export async function bookingRoutes(app: FastifyInstance) {
           c,
         );
       }
-      return { visitId: v!.id, clientId: client!.id, s, start, job };
+      return { visitId: v!.id, clientId: client!.id, s, start, job, address };
     });
 
     await audit(req, 'booking.request', 'visit', result.visitId, null, { start: b.start, source: 'online' });
@@ -183,7 +197,7 @@ export async function bookingRoutes(app: FastifyInstance) {
       await sendStaffEmail(
         result.s.shop_email,
         `Nueva cita por confirmar — ${b.name}`,
-        `${b.name} (${b.phone}) pidió una cita el ${when}.\n${b.make} ${b.model}${b.year ? ` ${b.year}` : ''}\n${address}${loc ? `\nhttps://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}` : ''}\n${result.job}${b.message ? `\n«${b.message}»` : ''}\n\nConfírmala en la Agenda de la app.`,
+        `${b.name} (${b.phone}) pidió una cita el ${when}.\n${b.make} ${b.model}${b.year ? ` ${b.year}` : ''}\n${home ? '' : '*** TRAE EL VEHÍCULO ***\n'}${result.address}${loc ? `\nhttps://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}` : ''}\n${result.job}${b.message ? `\n«${b.message}»` : ''}\n\nConfírmala en la Agenda de la app.`,
       ).catch((e) => req.log.error(e));
     }
     return { ok: true, start: result.start.toISOString() };

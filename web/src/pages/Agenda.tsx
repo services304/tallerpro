@@ -186,6 +186,7 @@ export function Agenda() {
                     </Link>
                     <Status value={v.status} label={t(`agenda.status.${v.status}` as Key)} />
                   </div>
+                  {v.service_mode === 'dropoff' && <span className="status s-info">{t('agenda.dropoff')}</span>}
                   <p className="muted small">
                     {[t(`agenda.purpose.${v.purpose}` as Key), vehicleName(v), v.visit_fee_cents > 0 ? f.money(v.visit_fee_cents) : ''].filter(Boolean).join(' — ')}
                   </p>

@@ -148,3 +148,48 @@ describe('ubicación del cliente (taller móvil)', () => {
     expect(r.json).toHaveProperty('address');
   });
 });
+
+describe('varios trabajos por reserva y lista para cuentas viejas', () => {
+  it('el cliente puede marcar varios trabajos', async () => {
+    const slot = await firstSlot();
+    const types = (await guest.get('/api/public/booking')).json.work_types;
+    const oil = types.find((w: any) => w.names.fr?.startsWith("Vidange d'huile"));
+    const pads = types.find((w: any) => w.names.fr === 'Remplacement des plaquettes de frein avant');
+    expect((await guest.post('/api/public/booking', { ...base, start: slot, work_type_ids: [oil.id, pads.id] })).status).toBe(200);
+    const v = (await owner.get('/api/visits')).json.find((x: any) => x.status === 'requested');
+    expect(v.notes).toBe('Cambio de aceite y filtro, Cambio de pastillas de freno delanteras');
+    expect(v.work_type_id).toBe(oil.id);
+  });
+
+  it('una cuenta creada antes de la lista la recibe una sola vez al arrancar', async () => {
+    const { pool } = await import('../src/db.js');
+    const { ensureWorkCatalog } = await import('../src/services/samples.js');
+    await pool.query('DELETE FROM work_types');
+    await pool.query(`UPDATE settings SET seeds_done = array_remove(seeds_done, 'work-catalog-v1')`);
+    expect(await ensureWorkCatalog()).toBeGreaterThan(30);
+    expect(await ensureWorkCatalog()).toBeNull();
+    expect((await guest.get('/api/public/booking')).json.work_types.length).toBeGreaterThan(30);
+  });
+});
+
+describe('servicio a domicilio o el cliente trae el vehículo', () => {
+  it('si trae el vehículo no pide ubicación y usa la dirección y tarifa del taller', async () => {
+    await owner.req('PATCH', '/api/settings', { shop_address: '50, rue du Garage, Laval', dropoff_fee_cents: 6000 });
+    const info = (await guest.get('/api/public/booking')).json;
+    expect(info).toMatchObject({ dropoff_enabled: true, dropoff_fee_cents: 6000, shop_address: '50, rue du Garage, Laval' });
+    const slot = await firstSlot();
+    const r = await guest.post('/api/public/booking', { ...base, address: '', start: slot, service_mode: 'dropoff' });
+    expect(r.status).toBe(200);
+    const v = (await owner.get('/api/visits')).json.find((x: any) => x.status === 'requested');
+    expect(v).toMatchObject({ service_mode: 'dropoff', address: '50, rue du Garage, Laval', visit_fee_cents: 6000, lat: null });
+    expect((await owner.get('/api/dashboard')).json.bookings[0].service_mode).toBe('dropoff');
+  });
+
+  it('a domicilio sigue pidiendo dirección o ubicación; y se puede desactivar traer el vehículo', async () => {
+    const slot = await firstSlot();
+    expect((await guest.post('/api/public/booking', { ...base, address: '', start: slot, service_mode: 'home' })).status).toBe(400);
+    await owner.req('PATCH', '/api/settings', { dropoff_enabled: false });
+    expect((await guest.get('/api/public/booking')).json.dropoff_enabled).toBe(false);
+    expect((await guest.post('/api/public/booking', { ...base, start: slot, service_mode: 'dropoff' })).status).toBe(400);
+  });
+});

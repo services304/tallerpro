@@ -39,6 +39,8 @@ export function Settings() {
       messaging_mode: s.messaging_mode,
       google_review_url: (s.google_review_url ?? '').trim(),
       booking_enabled: s.booking_enabled,
+      dropoff_enabled: s.dropoff_enabled,
+      dropoff_fee_cents: s.dropoff_fee_cents ?? 0,
       track_staff_location: s.track_staff_location,
       booking_days: s.booking_days,
       booking_start_hour: Number(s.booking_start_hour),
@@ -209,6 +211,13 @@ function BookingSettings({ s, setS }: { s: any; setS: (v: any) => void }) {
         <Input label={t('bookset.maxDays')} type="number" min={1} max={120} value={s.booking_max_days ?? 21} onChange={num('booking_max_days')} />
       </div>
       <p className="muted small">{t('bookset.help')}</p>
+      <Check label={t('bookset.dropoff')} checked={Boolean(s.dropoff_enabled)} onChange={(dropoff_enabled) => setS({ ...s, dropoff_enabled })} />
+      {s.dropoff_enabled && (
+        <>
+          <MoneyInput label={t('bookset.dropoffFee')} cents={s.dropoff_fee_cents ?? 0} onChange={(dropoff_fee_cents) => setS({ ...s, dropoff_fee_cents })} />
+          <p className="muted small">{t('bookset.dropoffHelp')}</p>
+        </>
+      )}
     </section>
   );
 }

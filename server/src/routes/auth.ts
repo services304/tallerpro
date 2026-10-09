@@ -50,6 +50,7 @@ export async function authRoutes(app: FastifyInstance) {
       await q('UPDATE settings SET shop_name=$1, shop_email=$2, default_lang=$3 WHERE id=1', [b.shopName, b.email, b.lang === 'es' ? 'fr' : b.lang], c);
       // Lista de trabajos comunes con precio sugerido, lista para usar.
       await addSuggestedWork(c as any);
+      await q(`UPDATE settings SET seeds_done = array_append(seeds_done, 'work-catalog-v1') WHERE id=1 AND NOT ('work-catalog-v1' = ANY(seeds_done))`, [], c);
       return one<{ id: string }>(
         `INSERT INTO users (name, email, role, is_mechanic, password_hash, lang) VALUES ($1,$2,'admin',true,$3,$4) RETURNING id`,
         [b.name, b.email, hash, b.lang],

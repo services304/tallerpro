@@ -36,6 +36,8 @@ export async function catalogRoutes(app: FastifyInstance) {
         quiet_end_hour: z.number().int().min(0).max(23),
         messaging_mode: z.enum(['auto', 'manual']),
         booking_enabled: z.boolean(),
+        dropoff_enabled: z.boolean(),
+        dropoff_fee_cents: cents,
         track_staff_location: z.boolean(),
         booking_days: z.array(z.number().int().min(1).max(7)).max(7),
         booking_start_hour: z.number().int().min(0).max(23),
