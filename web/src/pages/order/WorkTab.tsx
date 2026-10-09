@@ -229,9 +229,23 @@ function EditLine({ d, line, onDone }: { d: any; line: any; onDone: () => void }
   );
 }
 
+const CAN_SEND_QUOTE = ['received', 'diagnosis', 'parts_quote', 'quote_sent', 'approved', 'waiting_parts', 'in_repair'];
+
 function Lines({ d, reload }: { d: any; reload: () => void }) {
   const { t, f } = useI18n();
-  const { run } = useAction();
+  const { run, busy } = useAction();
+  const toast = useToast();
+  const pendingLines = d.lines.filter((l: any) => l.approval === 'pending');
+  const missingOffers = d.parts.filter((p: any) => ['pending', 'quoted'].includes(p.status));
+  const canSend = pendingLines.length > 0 && CAN_SEND_QUOTE.includes(d.order.status);
+  /** Envía al cliente todo lo «por aprobar» (una cotización con todas esas líneas). */
+  async function sendForApproval() {
+    if (missingOffers.length) return toast(t('quote.needOffers'), true);
+    const r = await run(() => post<{ notified: number }>(`/orders/${d.order.id}/quotes`, {}));
+    if (!r) return;
+    toast(r.notified > 0 ? t('quote.readyToSend') : t('quote.noContact'), r.notified === 0);
+    reload();
+  }
   const [adding, setAdding] = useState<null | LineKind>(null);
   const [editing, setEditing] = useState<any>(null);
   const editable = EDITABLE.includes(d.order.status);
@@ -256,7 +270,6 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
               <th>{t('common.description')}</th>
               <th className="num">{t('common.quantity')}</th>
               <th className="num">{t('common.total')}</th>
-              <th />
             </tr>
           </thead>
           <tbody>
@@ -269,10 +282,13 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
                     <span className={`status ${tone[l.approval]}`}>{t(`order.approval.${l.approval}` as Key)}</span>
                     {l.inventory_item_id && <span className="muted small"> {l.stock_taken ? t('inv.lineTaken') : t('inv.lineFromStock')}</span>}
                   </div>
-                </td>
-                <td className="num">{l.quantity}</td>
-                <td className="num">{f.money(Math.round(l.quantity * l.unit_price_cents) * (l.kind === 'discount' ? -1 : 1))}</td>
-                <td className="num">
+                  {l.approval === 'pending' && (canSend || editable) && (
+                    <div className="line-actions">
+                  {canSend && l.approval === 'pending' && (
+                    <button className="btn primary small" disabled={busy} onClick={sendForApproval} title={t('lines.sendTitle')}>
+                      {t('lines.send')}
+                    </button>
+                  )}
                   {editable && l.approval === 'pending' && (
                     <button className="btn ghost small" onClick={() => setEditing(l)}>
                       {t('common.edit')}
@@ -289,7 +305,11 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
                       {t('common.delete')}
                     </button>
                   )}
+                    </div>
+                  )}
                 </td>
+                <td className="num">{l.quantity}</td>
+                <td className="num">{f.money(Math.round(l.quantity * l.unit_price_cents) * (l.kind === 'discount' ? -1 : 1))}</td>
               </tr>
             ))}
           </tbody>
@@ -299,6 +319,17 @@ function Lines({ d, reload }: { d: any; reload: () => void }) {
         <Totals totals={d.totals.approved} label={t('order.approvedTotal')} />
         {d.totals.pending.subtotal_cents > 0 && <Totals totals={d.totals.pending} label={t('order.pendingTotal')} />}
       </div>
+      {canSend && (
+        <div className="send-bar">
+          <span>
+            {t('lines.pendingCount', { n: pendingLines.length })} — <strong>{f.money(d.totals.pending.total_cents)}</strong>
+          </span>
+          <button className="btn primary" disabled={busy} onClick={sendForApproval}>
+            {d.order.status === 'quote_sent' ? t('lines.resend') : t('lines.sendAll')}
+          </button>
+          {missingOffers.length > 0 && <span className="error-msg">{t('quote.needOffers')}</span>}
+        </div>
+      )}
       <Sheet open={Boolean(editing)} onClose={() => setEditing(null)} title={t('common.edit')}>
         {editing && (
           <EditLine

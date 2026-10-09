@@ -100,3 +100,31 @@ describe('modificar la factura a mano', () => {
     expect((await owner.post(`/api/invoices/${invId}/lines`, { kind: 'fee', description: 'X', quantity: 1, unit_price_cents: 100 })).status).toBe(409);
   });
 });
+
+describe('enviar a aprobar desde la lista de trabajos', () => {
+  it('trabajo extra durante la reparación: se envía, se aprueba y lo anterior sigue aprobado', async () => {
+    const id = await quotedOrder();
+    await decideAll(id, 'approved');
+    await owner.post(`/api/orders/${id}/status`, { to: 'in_repair' });
+    await owner.post(`/api/orders/${id}/lines`, { kind: 'labor', description: 'Bougies', quantity: 1, unit_price_cents: 11000 });
+    const q2 = await owner.post(`/api/orders/${id}/quotes`, {});
+    expect(q2.status).toBe(200);
+    let d = (await owner.get(`/api/orders/${id}`)).json;
+    expect(d.order.status).toBe('quote_sent');
+    expect(d.quotes[0].lines.map((l: any) => l.description)).toEqual(['Bougies']);
+    await decideAll(id, 'approved');
+    d = (await owner.get(`/api/orders/${id}`)).json;
+    expect(d.order.status).toBe('approved');
+    expect(d.lines.filter((l: any) => l.approval === 'approved').map((l: any) => l.description)).toEqual(expect.arrayContaining(['Frenos', 'Bougies']));
+  });
+
+  it('desde la recepción pasa a diagnóstico y envía', async () => {
+    const c = (await owner.post('/api/clients', { name: 'Luc', phone: '450 555 0103', lang: 'fr' })).json;
+    const v = (await owner.post('/api/vehicles', { client_id: c.id, make: 'Ford', model: 'F-150' })).json;
+    const o = (await owner.post('/api/orders', { client_id: c.id, vehicle_id: v.id })).json;
+    await owner.post(`/api/orders/${o.id}/signatures`, { kind: 'intake', signer_name: 'Luc', image: PNG_1x1 });
+    await owner.post(`/api/orders/${o.id}/lines`, { kind: 'labor', description: 'Freins', quantity: 1, unit_price_cents: 12000 });
+    expect((await owner.post(`/api/orders/${o.id}/quotes`, {})).status).toBe(200);
+    expect((await owner.get(`/api/orders/${o.id}`)).json.order.status).toBe('quote_sent');
+  });
+});

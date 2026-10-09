@@ -30,7 +30,11 @@ export async function quoteRoutes(app: FastifyInstance) {
         c,
       );
       if (!o) throw notFound();
-      if (!['diagnosis', 'parts_quote', 'quote_sent'].includes(o.status)) throw new AppError(409, 'order.bad_transition', { from: o.status, to: 'quote_sent' });
+      // Se puede enviar desde la recepción (pasa a diagnóstico) y durante la reparación (trabajo adicional).
+      const EXTRA_WORK = ['approved', 'waiting_parts', 'in_repair'];
+      if (![...['received', 'diagnosis', 'parts_quote', 'quote_sent'], ...EXTRA_WORK].includes(o.status)) {
+        throw new AppError(409, 'order.bad_transition', { from: o.status, to: 'quote_sent' });
+      }
       const missing = await q<{ description: string }>(
         `SELECT description FROM parts_requests pr WHERE order_id=$1 AND status IN ('pending','quoted')
            AND NOT EXISTS (SELECT 1 FROM order_lines l WHERE l.parts_request_id=pr.id AND l.approval<>'pending')`,
@@ -59,7 +63,18 @@ export async function quoteRoutes(app: FastifyInstance) {
           c,
         );
       }
-      if (o.status !== 'quote_sent') await transition(c, id, 'quote_sent', { kind: 'staff', userId: req.user!.id });
+      if (o.status === 'received') {
+        await transition(c, id, 'diagnosis', { kind: 'staff', userId: req.user!.id });
+        await transition(c, id, 'quote_sent', { kind: 'staff', userId: req.user!.id });
+      } else if (EXTRA_WORK.includes(o.status)) {
+        // Cotización complementaria: lo ya aprobado sigue en pie; el cliente decide solo lo nuevo.
+        await q(`UPDATE orders SET status='quote_sent', updated_at=now() WHERE id=$1`, [id], c);
+        await q(
+          `INSERT INTO order_status_history (order_id, from_status, to_status, user_id, actor, note, created_at) VALUES ($1,$2,'quote_sent',$3,'staff','additional work', clock_timestamp())`,
+          [id, o.status, req.user!.id],
+          c,
+        );
+      } else if (o.status !== 'quote_sent') await transition(c, id, 'quote_sent', { kind: 'staff', userId: req.user!.id });
       const notified = b.notify ? await notifyOrder(c, id, 'quote_ready', { total: moneyFor(o.lang, totals.total_cents) }) : 0;
       return { ...quote!, notified };
     });

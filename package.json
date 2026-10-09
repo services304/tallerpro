@@ -1,6 +1,6 @@
 {
   "name": "tallerpro",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "workspaces": ["server", "web"],
   "scripts": {

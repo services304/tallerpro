@@ -434,3 +434,5 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 .progress li.now { color: var(--ink); font-weight: 700; }
 .next-step { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border-left: 4px solid var(--accent); scroll-margin-top: 80px; }
 #parts { scroll-margin-top: 80px; }
+.send-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--accent); }
+.line-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
