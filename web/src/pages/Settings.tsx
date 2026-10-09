@@ -39,6 +39,7 @@ export function Settings() {
       messaging_mode: s.messaging_mode,
       google_review_url: (s.google_review_url ?? '').trim(),
       booking_enabled: s.booking_enabled,
+      track_staff_location: s.track_staff_location,
       booking_days: s.booking_days,
       booking_start_hour: Number(s.booking_start_hour),
       booking_end_hour: Number(s.booking_end_hour),
@@ -101,6 +102,11 @@ export function Settings() {
         </div>
       </section>
       <BookingSettings s={s} setS={setS} />
+      <section className="section">
+        <h2>{t('geo.title')}</h2>
+        <Check label={t('geo.enable')} checked={Boolean(s.track_staff_location)} onChange={(track_staff_location) => setS({ ...s, track_staff_location })} />
+        <p className="muted small">{t('geo.settingsHelp')}</p>
+      </section>
       <section className="section">
         <h2>{t('settings.reviews')}</h2>
         <p className="muted small">{t('settings.reviewsHelp')}</p>

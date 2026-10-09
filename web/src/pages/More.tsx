@@ -8,6 +8,7 @@ const ADMIN: [string, Key][] = [
   ['/more/work-types', 'more.workTypes'],
   ['/more/templates', 'more.templates'],
   ['/more/import', 'more.import'],
+  ['/more/locations', 'more.locations'],
 ];
 const ALL: [string, Key][] = [
   ['/more/inventory', 'more.inventory'],

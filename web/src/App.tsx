@@ -1,9 +1,11 @@
+import { Locations } from './pages/Locations';
+import { geoStatus, onGeoStatus, startGeoTracking, stopGeoTracking } from './geo';
 import { Booking } from './pages/Booking';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { get, onAuthLost, onVersionMismatch, patch } from './api';
 import { IconAgenda, IconClients, IconMore, IconOrders, IconToday } from './components/icons';
-import { ErrorBoundary, ToastProvider } from './components/ui';
+import { ErrorBoundary, ToastProvider, useLoad } from './components/ui';
 import { OutboxPrompt } from './components/Outbox';
 import { I18nProvider, LANGS, useI18n, type Lang } from './i18n';
 import { SessionProvider, useSession } from './session';
@@ -77,6 +79,26 @@ function Banners() {
   );
 }
 
+/** Registra la ubicación mientras se usa la app (si está activado en Ajustes) y avisa si falta el permiso. */
+function GeoTracker() {
+  const { t } = useI18n();
+  const settings = useLoad<any>('/settings');
+  const [status, setStatus] = useState(geoStatus());
+  const enabled = Boolean(settings.data?.track_staff_location);
+  useEffect(() => onGeoStatus(setStatus), []);
+  useEffect(() => {
+    if (!enabled) return;
+    startGeoTracking();
+    return () => stopGeoTracking();
+  }, [enabled]);
+  if (!enabled || status !== 'denied') return null;
+  return (
+    <div className="banner warn" role="note">
+      {t('geo.denied')}
+    </div>
+  );
+}
+
 function Shell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const { shop } = useSession();
@@ -112,6 +134,7 @@ function Shell({ children }: { children: ReactNode }) {
       </nav>
       <div>
         <Banners />
+        <GeoTracker />
         <ErrorBoundary where={loc.pathname} key={loc.pathname}>
           <main className="main">{children}</main>
         </ErrorBoundary>
@@ -144,6 +167,7 @@ function Private() {
         <Route path="/more/work-types" element={<WorkTypes />} />
         <Route path="/more/suppliers" element={<Suppliers />} />
         <Route path="/more/inventory" element={<Inventory />} />
+        <Route path="/more/locations" element={<Locations />} />
         <Route path="/more/templates" element={<Templates />} />
         <Route path="/more/import" element={<Import />} />
         <Route path="/more/notifications" element={<Notifications />} />

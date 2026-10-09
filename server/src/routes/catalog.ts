@@ -5,6 +5,7 @@ import { one, pool, q } from '../db.js';
 import { addSuggestedWork } from '../lib/workCatalog.js';
 import { audit } from '../lib/audit.js';
 import { notFound } from '../lib/errors.js';
+import { resetTrackingCache } from './locations.js';
 import { defaultTemplates, LANGS, NOTIFICATION_EVENTS } from '../lib/i18n.js';
 import { normalizePhone } from '../lib/phone.js';
 
@@ -35,6 +36,7 @@ export async function catalogRoutes(app: FastifyInstance) {
         quiet_end_hour: z.number().int().min(0).max(23),
         messaging_mode: z.enum(['auto', 'manual']),
         booking_enabled: z.boolean(),
+        track_staff_location: z.boolean(),
         booking_days: z.array(z.number().int().min(1).max(7)).max(7),
         booking_start_hour: z.number().int().min(0).max(23),
         booking_end_hour: z.number().int().min(1).max(24),
@@ -53,6 +55,7 @@ export async function catalogRoutes(app: FastifyInstance) {
       await q(`UPDATE settings SET ${sets}, updated_at=now() WHERE id=1`, keys.map((k) => (k === 'warranty_text' ? JSON.stringify((b as any)[k]) : (b as any)[k])));
       await audit(req, 'settings.update', 'settings', '1', before, b);
     }
+    resetTrackingCache();
     return one('SELECT * FROM settings WHERE id=1');
   });
 

@@ -1,3 +1,4 @@
+import { geoHeader } from './geo';
 import { currentLang } from './i18n';
 
 declare const __APP_VERSION__: string;
@@ -52,6 +53,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
       headers: {
         'x-requested-with': 'tallerpro',
         'x-lang': currentLang,
+        ...(method !== 'GET' ? geoHeader() : {}),
         ...(body !== undefined && !isForm ? { 'content-type': 'application/json' } : {}),
       },
       body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),

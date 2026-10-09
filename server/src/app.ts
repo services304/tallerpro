@@ -27,6 +27,7 @@ import { inventoryRoutes } from './routes/inventory.js';
 import { sampleRoutes } from './routes/samples.js';
 import { storageRoutes } from './routes/storage.js';
 import { bookingRoutes } from './routes/booking.js';
+import { locationRoutes, recordActionLocation } from './routes/locations.js';
 
 export interface SessionUser {
   id: string;
@@ -141,6 +142,11 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     if (!req.headers['x-lang']) req.lang = row.lang;
   });
 
+  // Registro de ubicación de las acciones del personal (si la app mandó su posición).
+  app.addHook('onResponse', async (req, reply) => {
+    await recordActionLocation(req, reply.statusCode).catch((e) => req.log.error(e));
+  });
+
   app.setErrorHandler((err: any, req, reply: FastifyReply) => {
     const lang = req.lang ?? 'fr';
     if (err instanceof AppError) {
@@ -181,6 +187,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(sampleRoutes, { prefix: '/api' });
   await app.register(storageRoutes, { prefix: '/api' });
   await app.register(bookingRoutes, { prefix: '/api' });
+  await app.register(locationRoutes, { prefix: '/api' });
 
   // La app web compilada (PWA). Cualquier ruta que no sea /api devuelve index.html.
   if (existsSync(config.webDist)) {
