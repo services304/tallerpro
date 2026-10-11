@@ -1,3 +1,4 @@
+import { CarSilhouette } from '../components/CarSilhouette';
 import { LocateButton, placeUrl, type Located } from '../components/LocateButton';
 import { BookingActions } from '../components/BookingActions';
 import { useEffect, useState } from 'react';
@@ -108,6 +109,14 @@ export function VisitForm({ clientId: initialClient, onDone }: { clientId?: stri
           ))}
         </Select>
       )}
+      {(() => {
+        const sel = vehicles.find((v) => v.id === form.vehicle_id);
+        return sel ? (
+          <div className="car-preview">
+            <CarSilhouette make={sel.make} model={sel.model} color={sel.color} width={170} />
+          </div>
+        ) : null;
+      })()}
       <div className="grid2">
         <Input label={t('agenda.when')} type="datetime-local" required value={form.when} onChange={(e) => setForm({ ...form, when: e.target.value })} />
         <Input label={t('agenda.duration')} type="number" min={15} step={15} value={form.duration} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })} />

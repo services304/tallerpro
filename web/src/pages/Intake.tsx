@@ -1,3 +1,4 @@
+import { CarSilhouette } from '../components/CarSilhouette';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { get, post } from '../api';
@@ -164,6 +165,7 @@ export function Intake() {
                 {vehicles.map((v) => (
                   <label key={v.id} className="check item">
                     <input type="radio" name="veh" checked={vehicleId === v.id} onChange={() => setVehicleId(v.id)} />
+                    <CarSilhouette make={v.make} model={v.model} color={v.color} width={90} />
                     <span>
                       <strong>{vehicleName(v) || v.vin}</strong> <span className="muted">{v.plate}</span>
                     </span>

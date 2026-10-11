@@ -1,3 +1,4 @@
+import { CarSilhouette } from './CarSilhouette';
 import { VehiclePicker } from './VehiclePicker';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, get, patch, post } from '../api';
@@ -253,6 +254,11 @@ export function VehicleFields({ v, onChange }: { v: VehicleDraft; onChange: (v: 
         <Input label={t('intake.plate')} value={v.plate} autoCapitalize="characters" onChange={set('plate')} />
         <Input label={t('intake.color')} value={v.color} onChange={set('color')} />
       </div>
+      {v.make && (
+        <div className="car-preview">
+          <CarSilhouette make={v.make} model={v.model} color={v.color} width={200} />
+        </div>
+      )}
     </div>
   );
 }

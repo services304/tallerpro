@@ -1,3 +1,4 @@
+import { CarSilhouette } from '../components/CarSilhouette';
 import { ClientLinkButton } from '../components/ClientLink';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -88,13 +89,16 @@ export function OrderDetail() {
           <OrderStatus status={o.status} />
         </div>
         <div className="row between">
-          <div>
+          <div className="row car-head">
+            {d.vehicle && <CarSilhouette make={d.vehicle.make} model={d.vehicle.model} color={d.vehicle.color} width={96} />}
+            <div>
             <Link to={`/clients/${d.client.id}`} className="item-title" style={{ color: 'inherit' }}>
               {d.client.name}
             </Link>
             <p className="muted">
               {[vehicleName(d.vehicle), d.vehicle.plate, d.vehicle.color].filter(Boolean).join(' — ')}
             </p>
+            </div>
           </div>
           <div className="row">
             <ClientLinkButton orderId={o.id} hasPendingQuote={d.quotes?.some((q: any) => q.status === 'sent')} />

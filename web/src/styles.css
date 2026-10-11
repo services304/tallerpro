@@ -436,3 +436,11 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.55); }
 #parts { scroll-margin-top: 80px; }
 .send-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--accent); }
 .line-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* Dibujo genérico del vehículo */
+.car-svg { display: block; max-width: 100%; height: auto; flex-shrink: 0; }
+.list .item.car-row { display: flex; align-items: center; gap: 12px; }
+.car-head { align-items: center; gap: 10px; flex-wrap: nowrap; }
+.car-preview { display: flex; justify-content: center; padding: 4px 0; }
+.check.item .car-svg { margin-right: 4px; }
+.stack-tight { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

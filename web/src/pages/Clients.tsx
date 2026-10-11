@@ -1,3 +1,4 @@
+import { CarSilhouette } from '../components/CarSilhouette';
 import { placeUrl } from '../components/LocateButton';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -169,11 +170,14 @@ export function ClientDetail() {
         ) : (
           <ul className="list">
             {vehicles.map((v: any) => (
-              <li key={v.id} className="item">
-                <span className="item-title">{vehicleName(v) || v.vin}</span>
-                <span className="muted small">
-                  {[v.plate, v.vin, v.last_odometer ? `${f.number(v.last_odometer)} km` : ''].filter(Boolean).join(' — ')}
-                </span>
+              <li key={v.id} className="item car-row">
+                <CarSilhouette make={v.make} model={v.model} color={v.color} width={110} />
+                <div className="stack-tight">
+                  <span className="item-title">{vehicleName(v) || v.vin}</span>
+                  <span className="muted small">
+                    {[v.color, v.plate, v.vin, v.last_odometer ? `${f.number(v.last_odometer)} km` : ''].filter(Boolean).join(' — ')}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>

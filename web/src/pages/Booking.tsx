@@ -1,3 +1,4 @@
+import { CarSilhouette } from '../components/CarSilhouette';
 import { checkEmail, formatLocal7, OTHER_CA_AREA_CODES, QC_AREA_CODES, validLocal7 } from '../lib/contact';
 import { VehiclePicker } from '../components/VehiclePicker';
 import { LocateButton, type Located } from '../components/LocateButton';
@@ -346,6 +347,11 @@ export function Booking() {
         <h2>4. {t('book.car')}</h2>
         <div id="f-car">
           <VehiclePicker make={form.make} model={form.model} year={form.year} yearOptional errors={{ make: show('make'), model: show('model') }} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
+          {form.make && (
+            <div className="car-preview">
+              <CarSilhouette make={form.make} model={form.model} width={200} />
+            </div>
+          )}
         </div>
         <TextArea label={`${t('book.message')} (${t('common.optional')})`} value={form.message} onChange={set('message')} placeholder={t('book.messageHint')} />
         {/* Trampa para robots: invisible para personas */}
